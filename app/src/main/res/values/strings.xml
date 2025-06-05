@@ -1,0 +1,18 @@
+<resources>
+    <string name="app_name">ProjektWeterynarzApp</string>
+    <!-- Title i podtytuł -->
+    <string name="home_title">BKRJ Vet</string>
+    <string name="home_subtitle">Najlepsza opieka dla Twojego zwierzaka\nProfesjonalna klinika weterynaryjna w sercu miasta.</string>
+
+    <!-- Sekcja "O nas" -->
+    <string name="home_about_heading">O nas</string>
+    <string name="home_about_text">Klinika BKRJ Vet to zespół doświadczonych lekarzy weterynarii, którzy gwarantują najwyższy poziom opieki. Specjalizujemy się w diagnostyce, chirurgii oraz profilaktyce zdrowotnej.</string>
+
+    <!-- Sekcja "Usługi" -->
+    <string name="home_services_heading">Usługi</string>
+    <string name="home_services_text">• Badania profilaktyczne\n• Szczepienia\n• Chirurgia małych zwierząt\n• Stomatologia weterynaryjna\n• Porady dietetyczne</string>
+
+    <!-- Sekcja "Kontakt" -->
+    <string name="home_contact_heading">Kontakt</string>
+    <string name="home_contact_text">Adres: ul. Zwierzęca 12, 00-123 Warszawa\nTelefon: +48 123 456 789\nEmail: kontakt@bkrjvet.pl</string>
+</resources>

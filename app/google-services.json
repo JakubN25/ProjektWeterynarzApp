@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "289704325759",
+    "project_id": "bkrj-vet",
+    "storage_bucket": "bkrj-vet.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:289704325759:android:08ec42e54603e76540854a",
+        "android_client_info": {
+          "package_name": "com.example.projektweterynarzapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBHO-q2gIif-kQNOzhLX9jW006dSV5mfSg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

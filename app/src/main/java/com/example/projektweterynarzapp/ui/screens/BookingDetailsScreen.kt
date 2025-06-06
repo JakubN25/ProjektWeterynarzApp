@@ -5,6 +5,7 @@ import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.ArrowDropUp
 import androidx.compose.material3.*
@@ -18,7 +19,6 @@ import androidx.navigation.NavHostController
 import com.example.projektweterynarzapp.data.AuthRepository
 import com.example.projektweterynarzapp.data.models.Pet
 import com.example.projektweterynarzapp.ui.navigation.Screen
-import kotlinx.coroutines.launch
 
 /**
  * Ekran: „Uzupełnij szczegóły wizyty”.
@@ -65,9 +65,16 @@ fun BookingDetailsScreen(
                             style = MaterialTheme.typography.bodySmall
                         )
                     }
+                },
+                navigationIcon = {
+                    // ← Strzałka „wstecz” – wracamy do wyboru terminu
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Wstecz")
+                    }
                 }
             )
         }
+
     ) { innerPadding ->
         Column(
             modifier = Modifier

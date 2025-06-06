@@ -18,7 +18,7 @@ import androidx.compose.ui.unit.dp
  */
 @Composable
 fun BookingScreen(
-    onSelectLocation: (String) -> Unit
+    onSelectLocation: (String) -> Unit,
 ) {
     Column(
         modifier = Modifier

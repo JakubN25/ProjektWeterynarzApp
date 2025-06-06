@@ -86,10 +86,12 @@ fun Navigation(
             )
         }
         composable(Screen.Booking.route) {
-            BookingScreen { location ->
-                // przejdź do ekranu wyboru daty, podając nazwę lokalu
-                navController.navigate(Screen.BookingDate.createRoute(location))
-            }
+            BookingScreen(
+                onSelectLocation = { location ->
+                    // przejdź do ekranu wyboru daty
+                    navController.navigate(Screen.BookingDate.createRoute(location))
+                },
+            )
         }
 
         // ekran wyboru terminu – przyjmujemy argument "location"

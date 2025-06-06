@@ -1,12 +1,12 @@
 // ui/screens/BookingDateScreen.kt
 package com.example.projektweterynarzapp.ui.screens
 
-import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -74,9 +74,16 @@ fun BookingDateScreen(
                         fontWeight = FontWeight.Medium,
                         modifier = Modifier.padding(start = 16.dp)
                     )
+                },
+                navigationIcon = {
+                    // ← Strzałka „wstecz” – wracamy do wyboru lokalu
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Wstecz")
+                    }
                 }
             )
         }
+
     ) { innerPadding ->
         Column(
             modifier = Modifier

@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.example.projektweterynarzapp.data.AuthRepository
 import com.example.projektweterynarzapp.data.models.Pet
+import com.example.projektweterynarzapp.data.models.User
 import com.example.projektweterynarzapp.ui.navigation.Screen
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -46,7 +47,7 @@ fun BookingDetailsScreen(
     var petList by remember { mutableStateOf<List<Pet>>(emptyList()) }
     var isLoadingPets by remember { mutableStateOf(true) }
 
-    var doctorList by remember { mutableStateOf<List<String>>(emptyList()) }
+    var doctorList by remember { mutableStateOf<List<User>>(emptyList()) }
     var isLoadingDoctors by remember { mutableStateOf(true) }
 
     // Pobrane raz
@@ -59,7 +60,6 @@ fun BookingDetailsScreen(
         // doctors
         isLoadingDoctors = true
         doctorList = authRepo.getDoctors()
-            .map { "${it.firstName} ${it.lastName}".trim() }
         isLoadingDoctors = false
         }
 
@@ -122,15 +122,18 @@ fun BookingDetailsScreen(
                     }
 
                     // 3) I równolegle – zapis w bazie
+                    val docId   = chosenDoctor?.uid ?: ""
+                    val docName = "${chosenDoctor?.firstName} ${chosenDoctor?.lastName}".trim()
                     coroutineScope.launch {
                         val ok = authRepo.addBooking(
-                            location  = location,
-                            date      = date,
-                            hour      = hour,
-                            petId     = chosenPet?.id ?: "",
-                            petName   = chosenPet?.name ?: "",
-                            visitType = visitType,
-                            doctor    = chosenDoctor
+                            location   = location,
+                            date       = date,
+                            hour       = hour,
+                            petId      = chosenPet?.id ?: "",
+                            petName    = chosenPet?.name ?: "",
+                            visitType  = visitType,
+                            doctorId   = docId,
+                            doctorName = docName
                         )
                         Log.d("BookingDetails", "addBooking returned: $ok")
                         withContext(Dispatchers.Main) {
@@ -150,9 +153,9 @@ fun BookingDetailsScreen(
 fun BookingDetailsForm(
     petList: List<Pet>,
     isLoadingPets: Boolean,
-    doctorList: List<String>,
+    doctorList: List<User>,
     isLoadingDoctors: Boolean,
-    onConfirm: (selectedPet: Pet?, visitType: String, doctor: String) -> Unit
+    onConfirm: (selectedPet: Pet?, visitType: String, doctor: User?) -> Unit
 ) {
     var expandedPet by remember { mutableStateOf(false) }
     var selectedPet by remember { mutableStateOf<Pet?>(null) }
@@ -162,7 +165,7 @@ fun BookingDetailsForm(
     var selectedVisitType by remember { mutableStateOf<String?>(null) }
 
     var expandedDoctor by remember { mutableStateOf(false) }
-    var selectedDoctor by remember { mutableStateOf<String?>(null) }
+    var selectedDoctor by remember { mutableStateOf<User?>(null) }
 
     Card(
         modifier = Modifier
@@ -287,7 +290,9 @@ fun BookingDetailsForm(
             Spacer(modifier = Modifier.height(4.dp))
             Box(modifier = Modifier.fillMaxWidth()) {
                 OutlinedTextField(
-                    value = selectedDoctor ?: "",
+                    value = selectedDoctor
+                        ?.let { "${it.firstName} ${it.lastName}".trim() }
+                        .orEmpty(),
                     onValueChange = {},
                     placeholder = {
                         when {
@@ -327,11 +332,12 @@ fun BookingDetailsForm(
                         }
                     )
                     Divider()
-                    doctorList.forEach { doc ->
+                    doctorList.forEach { docUser ->
+                        val label = "${docUser.firstName} ${docUser.lastName}".trim()
                         DropdownMenuItem(
-                            text = { Text(doc) },
+                            text = { Text(label) },
                             onClick = {
-                                selectedDoctor = doc
+                                selectedDoctor = docUser
                                 expandedDoctor = false
                             }
                         )
@@ -343,7 +349,7 @@ fun BookingDetailsForm(
 
             Button(
                 onClick = {
-                    onConfirm(selectedPet, selectedVisitType ?: "", selectedDoctor ?: "")
+                    onConfirm(selectedPet, selectedVisitType.orEmpty(), selectedDoctor)
                 },
                 modifier = Modifier
                     .fillMaxWidth()

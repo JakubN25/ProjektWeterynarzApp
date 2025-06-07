@@ -12,6 +12,7 @@ data class Booking(
     val petId: String = "",
     val petName: String = "",
     val visitType: String = "",
-    val doctor: String = "",
+    val doctorId:  String = "",
+    val doctorName:String = "",
     val createdAt: String = Timestamp.now().toDate().toString()
 )

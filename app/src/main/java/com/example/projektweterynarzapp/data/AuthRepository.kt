@@ -44,13 +44,15 @@ class AuthRepository {
 
         // Po udanej rejestracji – tworzony jest dokument w Firestore:
         val uid = firebaseUser.uid
-        val now = Timestamp.now()
+        val nowStr: String = Timestamp.now()
+            .toDate()
+            .toString()
 
         val newUser = User(
             uid = uid,
             email = email,
             role = "user",
-            created = now.toString(),
+            created = nowStr,
             firstName = "",
             lastName = "",
             phone = "",
@@ -235,51 +237,39 @@ class AuthRepository {
         petId: String,
         petName: String,
         visitType: String,
-        doctor: String
+        doctorId: String,
+        doctorName: String
     ): Boolean {
         val clientUid = auth.currentUser?.uid ?: return false
-        // przygotuj obiekt Booking
+
+        // 1) przygotuj obiekt Booking z nowymi polami
         val booking = Booking(
-            userId    = clientUid,
-            location  = location,
-            date      = date,
-            hour      = hour,
-            petId     = petId,
-            petName   = petName,
-            visitType = visitType,
-            doctor    = doctor,
-            // createdAt jako String
-            createdAt = Timestamp.now().toDate().toString()
+            userId     = clientUid,
+            location   = location,
+            date       = date,
+            hour       = hour,
+            petId      = petId,
+            petName    = petName,
+            visitType  = visitType,
+            doctorId   = doctorId,
+            doctorName = doctorName,
+            createdAt  = Timestamp.now().toDate().toString()
         )
+
         return try {
-            // 1) dodaj do klienta
+            // 2) dodaj wizytę pod klientem
             db.collection("users")
                 .document(clientUid)
                 .collection("bookings")
                 .add(booking)
                 .await()
 
-            // 2) parsowanie imienia/nazwiska
-            val parts = doctor.split(" ", limit = 2)
-            val first = parts.getOrNull(0) ?: ""
-            val last  = parts.getOrNull(1) ?: ""
-
-            // 3) znajdź lekarza(y) w kolekcji users
-            val doctorsSnap = db.collection("users")
-                .whereEqualTo("role", "doctor")
-                .whereEqualTo("firstName", first)
-                .whereEqualTo("lastName", last)
-                .get()
+            // 3) dodaj tę samą wizytę pod doktorem (po uid, bez szukania po imieniu)
+            db.collection("users")
+                .document(doctorId)
+                .collection("bookings")
+                .add(booking)
                 .await()
-
-            // 4) dla każdego znalezionego lekarza dodaj tę samą wizytę
-            doctorsSnap.documents.forEach { doc ->
-                db.collection("users")
-                    .document(doc.id)
-                    .collection("bookings")
-                    .add(booking)
-                    .await()
-            }
 
             true
         } catch (e: Exception) {
@@ -287,6 +277,7 @@ class AuthRepository {
             false
         }
     }
+
 }
 
 

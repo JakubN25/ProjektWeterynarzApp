@@ -1,6 +1,6 @@
-// ui/screens/BookingDetailsScreen.kt
 package com.example.projektweterynarzapp.ui.screens
 
+import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -19,6 +19,9 @@ import androidx.navigation.NavHostController
 import com.example.projektweterynarzapp.data.AuthRepository
 import com.example.projektweterynarzapp.data.models.Pet
 import com.example.projektweterynarzapp.ui.navigation.Screen
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Ekran: „Uzupełnij szczegóły wizyty”.
@@ -43,12 +46,22 @@ fun BookingDetailsScreen(
     var petList by remember { mutableStateOf<List<Pet>>(emptyList()) }
     var isLoadingPets by remember { mutableStateOf(true) }
 
+    var doctorList by remember { mutableStateOf<List<String>>(emptyList()) }
+    var isLoadingDoctors by remember { mutableStateOf(true) }
+
     // Pobrane raz
     LaunchedEffect(Unit) {
+        // pets
         isLoadingPets = true
         petList = authRepo.getPets()
         isLoadingPets = false
-    }
+
+        // doctors
+        isLoadingDoctors = true
+        doctorList = authRepo.getDoctors()
+            .map { "${it.firstName} ${it.lastName}".trim() }
+        isLoadingDoctors = false
+        }
 
     Scaffold(
         topBar = {
@@ -88,14 +101,12 @@ fun BookingDetailsScreen(
             BookingDetailsForm(
                 petList = petList,
                 isLoadingPets = isLoadingPets,
+                doctorList = doctorList,
+                isLoadingDoctors = isLoadingDoctors,
+                // w pliku BookingDetailsScreen.kt, wewnątrz onConfirm:
+
                 onConfirm = { chosenPet, visitType, chosenDoctor ->
-                    // TODO: tutaj zapisz wizytę do bazy danych:
-                    // - lokal: location
-                    // - data: date
-                    // - godzina: hour
-                    // - pet: chosenPet
-                    // - rodzaj: visitType
-                    // - lekarz: chosenDoctor
+                    // 1) Najpierw potwierdzenie dla użytkownika
                     Toast.makeText(
                         context,
                         "Potwierdzono wizytę:\nZwierzak: ${chosenPet?.name}\n" +
@@ -103,10 +114,30 @@ fun BookingDetailsScreen(
                                 "Data: $date $hour\nLokal: $location",
                         Toast.LENGTH_LONG
                     ).show()
-                    // Po potwierdzeniu możemy np. wyczyścić stack i wrócić do Home:
+
+                    // 2) Nawigacja z powrotem do Home
                     navController.popBackStack(Screen.Home.route, inclusive = false)
                     navController.navigate(Screen.Home.route) {
                         popUpTo(Screen.Home.route) { inclusive = true }
+                    }
+
+                    // 3) I równolegle – zapis w bazie
+                    coroutineScope.launch {
+                        val ok = authRepo.addBooking(
+                            location  = location,
+                            date      = date,
+                            hour      = hour,
+                            petId     = chosenPet?.id ?: "",
+                            petName   = chosenPet?.name ?: "",
+                            visitType = visitType,
+                            doctor    = chosenDoctor
+                        )
+                        Log.d("BookingDetails", "addBooking returned: $ok")
+                        withContext(Dispatchers.Main) {
+                            if (!ok) {
+                                Toast.makeText(context, "Nie udało się zapisać wizyty", Toast.LENGTH_LONG).show()
+                            }
+                        }
                     }
                 }
             )
@@ -114,13 +145,15 @@ fun BookingDetailsScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BookingDetailsForm(
     petList: List<Pet>,
     isLoadingPets: Boolean,
+    doctorList: List<String>,
+    isLoadingDoctors: Boolean,
     onConfirm: (selectedPet: Pet?, visitType: String, doctor: String) -> Unit
 ) {
-    // Stany dla poszczególnych dropdownów:
     var expandedPet by remember { mutableStateOf(false) }
     var selectedPet by remember { mutableStateOf<Pet?>(null) }
 
@@ -129,8 +162,6 @@ fun BookingDetailsForm(
     var selectedVisitType by remember { mutableStateOf<String?>(null) }
 
     var expandedDoctor by remember { mutableStateOf(false) }
-    // Na razie tylko placeholder
-    val doctorList = listOf("Brak dostępnych lekarzy")
     var selectedDoctor by remember { mutableStateOf<String?>(null) }
 
     Card(
@@ -150,41 +181,47 @@ fun BookingDetailsForm(
             // ---- Wybierz zwierzaka ----
             Text(text = "Wybierz zwierzaka", style = MaterialTheme.typography.bodyLarge)
             Spacer(modifier = Modifier.height(4.dp))
-            Box {
+            Box(modifier = Modifier.fillMaxWidth()) {
                 OutlinedTextField(
                     value = selectedPet?.let { "${it.name} (${it.species})" } ?: "",
-                    onValueChange = { /* brak edycji */ },
+                    onValueChange = {},
                     placeholder = {
-                        if (isLoadingPets) {
-                            Text("Ładowanie…")
-                        } else {
-                            Text(if (petList.isEmpty()) "Brak dodanych zwierząt" else "Wybierz zwierzaka")
+                        when {
+                            isLoadingPets       -> Text("Ładowanie…")
+                            petList.isEmpty()   -> Text("Brak dodanych zwierząt")
+                            else                -> Text("Wybierz zwierzaka")
                         }
                     },
                     readOnly = true,
                     trailingIcon = {
                         Icon(
                             imageVector = if (expandedPet) Icons.Filled.ArrowDropUp else Icons.Filled.ArrowDropDown,
-                            contentDescription = null,
-                            modifier = Modifier.clickable {
-                                if (petList.isNotEmpty()) expandedPet = !expandedPet
-                            }
+                            contentDescription = null
                         )
                     },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            if (petList.isNotEmpty()) expandedPet = true
-                        }
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(
+                    Modifier
+                        .matchParentSize()
+                        .clickable { if (petList.isNotEmpty()) expandedPet = true }
                 )
                 DropdownMenu(
                     expanded = expandedPet,
                     onDismissRequest = { expandedPet = false },
                     modifier = Modifier.fillMaxWidth()
                 ) {
+                    DropdownMenuItem(
+                        text = { Text("Anuluj") },
+                        onClick = {
+                            selectedPet = null
+                            expandedPet = false
+                        }
+                    )
+                    Divider()
                     petList.forEach { pet ->
                         DropdownMenuItem(
-                            text = { Text(text = "${pet.name} (${pet.species})") },
+                            text = { Text("${pet.name} (${pet.species})") },
                             onClick = {
                                 selectedPet = pet
                                 expandedPet = false
@@ -193,37 +230,29 @@ fun BookingDetailsForm(
                     }
                 }
             }
-            if (!isLoadingPets && petList.isEmpty()) {
-                Text(
-                    text = "Jeśli nie masz jeszcze dodanego zwierzaka, dodaj go w Moje Konto.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 4.dp)
-                )
-            }
 
             Spacer(modifier = Modifier.height(16.dp))
 
             // ---- Rodzaj wizyty ----
             Text(text = "Rodzaj wizyty", style = MaterialTheme.typography.bodyLarge)
             Spacer(modifier = Modifier.height(4.dp))
-            Box {
+            Box(modifier = Modifier.fillMaxWidth()) {
                 OutlinedTextField(
                     value = selectedVisitType ?: "",
-                    onValueChange = { },
+                    onValueChange = {},
                     placeholder = { Text("Wybierz rodzaj wizyty") },
                     readOnly = true,
                     trailingIcon = {
                         Icon(
                             imageVector = if (expandedVisitType) Icons.Filled.ArrowDropUp else Icons.Filled.ArrowDropDown,
-                            contentDescription = null,
-                            modifier = Modifier.clickable {
-                                expandedVisitType = !expandedVisitType
-                            }
+                            contentDescription = null
                         )
                     },
-                    modifier = Modifier
-                        .fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(
+                    Modifier
+                        .matchParentSize()
                         .clickable { expandedVisitType = true }
                 )
                 DropdownMenu(
@@ -231,9 +260,17 @@ fun BookingDetailsForm(
                     onDismissRequest = { expandedVisitType = false },
                     modifier = Modifier.fillMaxWidth()
                 ) {
+                    DropdownMenuItem(
+                        text = { Text("Anuluj") },
+                        onClick = {
+                            selectedVisitType = null
+                            expandedVisitType = false
+                        }
+                    )
+                    Divider()
                     visitTypes.forEach { type ->
                         DropdownMenuItem(
-                            text = { Text(text = type) },
+                            text = { Text(type) },
                             onClick = {
                                 selectedVisitType = type
                                 expandedVisitType = false
@@ -248,33 +285,51 @@ fun BookingDetailsForm(
             // ---- Wybierz lekarza ----
             Text(text = "Wybierz lekarza", style = MaterialTheme.typography.bodyLarge)
             Spacer(modifier = Modifier.height(4.dp))
-            Box {
+            Box(modifier = Modifier.fillMaxWidth()) {
                 OutlinedTextField(
                     value = selectedDoctor ?: "",
-                    onValueChange = { },
-                    placeholder = { Text("Wybierz lekarza") },
+                    onValueChange = {},
+                    placeholder = {
+                        when {
+                            isLoadingDoctors     -> Text("Ładowanie…")
+                            doctorList.isEmpty() -> Text("Brak dostępnych lekarzy")
+                            else                 -> Text("Wybierz lekarza")
+                        }
+                    },
                     readOnly = true,
                     trailingIcon = {
                         Icon(
                             imageVector = if (expandedDoctor) Icons.Filled.ArrowDropUp else Icons.Filled.ArrowDropDown,
-                            contentDescription = null,
-                            modifier = Modifier.clickable {
-                                expandedDoctor = !expandedDoctor
-                            }
+                            contentDescription = null
                         )
                     },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { expandedDoctor = true }
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(
+                    Modifier
+                        .matchParentSize()
+                        .clickable {
+                            if (!isLoadingDoctors && doctorList.isNotEmpty()) {
+                                expandedDoctor = true
+                            }
+                        }
                 )
                 DropdownMenu(
                     expanded = expandedDoctor,
                     onDismissRequest = { expandedDoctor = false },
                     modifier = Modifier.fillMaxWidth()
                 ) {
+                    DropdownMenuItem(
+                        text = { Text("Anuluj") },
+                        onClick = {
+                            selectedDoctor = null
+                            expandedDoctor = false
+                        }
+                    )
+                    Divider()
                     doctorList.forEach { doc ->
                         DropdownMenuItem(
-                            text = { Text(text = doc) },
+                            text = { Text(doc) },
                             onClick = {
                                 selectedDoctor = doc
                                 expandedDoctor = false
@@ -283,16 +338,9 @@ fun BookingDetailsForm(
                     }
                 }
             }
-            Text(
-                text = "Lista lekarzy pokazuje tylko tych, którzy zajmują się wybranym gatunkiem.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 4.dp)
-            )
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // ---- Przycisk „Potwierdź wizytę” ----
             Button(
                 onClick = {
                     onConfirm(selectedPet, selectedVisitType ?: "", selectedDoctor ?: "")
@@ -306,4 +354,3 @@ fun BookingDetailsForm(
         }
     }
 }
-

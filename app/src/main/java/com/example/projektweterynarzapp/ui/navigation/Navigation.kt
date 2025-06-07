@@ -12,6 +12,7 @@ sealed class Screen(val route: String) {
     object Login : Screen("login_screen")
     object Register : Screen("register_screen")
     object Home : Screen("home_screen")
+    object Admin : Screen("admin_screen")
     object Profile : Screen("profile_screen")
     object Pets : Screen("pets_screen")
     object Booking : Screen("booking_screen")
@@ -71,6 +72,10 @@ fun Navigation(
 
         composable(Screen.Home.route) {
             HomeScreen()
+        }
+
+        composable(Screen.Admin.route) {
+            AdminScreen()
         }
 
         composable(Screen.Profile.route) {

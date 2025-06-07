@@ -1,6 +1,7 @@
 package com.example.projektweterynarzapp.data
 
 import android.util.Log
+import com.example.projektweterynarzapp.data.models.Booking
 import com.example.projektweterynarzapp.data.models.Pet
 import com.example.projektweterynarzapp.data.models.User
 import com.google.firebase.Timestamp
@@ -8,6 +9,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
+import kotlin.text.get
 
 /**
  * AuthRepository odpowiada za:
@@ -206,4 +208,87 @@ class AuthRepository {
             false
         }
     }
+
+    /**
+     * Pobranie listy użytkowników z rolą "doctor" z kolekcji "users".
+     */
+    suspend fun getDoctors(): List<User> {
+        return try {
+            val snapshot = db.collection("users")
+                .whereEqualTo("role", "doctor")
+                .get()
+                .await()
+            snapshot.documents.mapNotNull { it.toObject(User::class.java) }
+        } catch (e: Exception) {
+            Log.e("AuthRepository", "getDoctors: błąd przy pobieraniu doctorów", e)
+            emptyList()
+        }
+    }
+
+    /**
+    +     * Zapisuje nową wizytę w subkolekcji "bookings" pod bieżącym użytkownikiem.
+    +     */
+    suspend fun addBooking(
+        location: String,
+        date: String,
+        hour: String,
+        petId: String,
+        petName: String,
+        visitType: String,
+        doctor: String
+    ): Boolean {
+        val clientUid = auth.currentUser?.uid ?: return false
+        // przygotuj obiekt Booking
+        val booking = Booking(
+            userId    = clientUid,
+            location  = location,
+            date      = date,
+            hour      = hour,
+            petId     = petId,
+            petName   = petName,
+            visitType = visitType,
+            doctor    = doctor,
+            // createdAt jako String
+            createdAt = Timestamp.now().toDate().toString()
+        )
+        return try {
+            // 1) dodaj do klienta
+            db.collection("users")
+                .document(clientUid)
+                .collection("bookings")
+                .add(booking)
+                .await()
+
+            // 2) parsowanie imienia/nazwiska
+            val parts = doctor.split(" ", limit = 2)
+            val first = parts.getOrNull(0) ?: ""
+            val last  = parts.getOrNull(1) ?: ""
+
+            // 3) znajdź lekarza(y) w kolekcji users
+            val doctorsSnap = db.collection("users")
+                .whereEqualTo("role", "doctor")
+                .whereEqualTo("firstName", first)
+                .whereEqualTo("lastName", last)
+                .get()
+                .await()
+
+            // 4) dla każdego znalezionego lekarza dodaj tę samą wizytę
+            doctorsSnap.documents.forEach { doc ->
+                db.collection("users")
+                    .document(doc.id)
+                    .collection("bookings")
+                    .add(booking)
+                    .await()
+            }
+
+            true
+        } catch (e: Exception) {
+            Log.e("AuthRepository", "addBooking failed", e)
+            false
+        }
+    }
 }
+
+
+
+

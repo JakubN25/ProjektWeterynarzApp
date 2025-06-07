@@ -17,12 +17,14 @@ import com.google.firebase.auth.FirebaseUser
 @Composable
 fun DrawerContent(
     currentUser: FirebaseUser?,
+    currentUserRole: String?,
     onHomeSelected: () -> Unit,
     onLoginSelected: () -> Unit,
     onRegisterSelected: () -> Unit,
     onProfileSelected: () -> Unit,
     onPetsSelected: () -> Unit,
     onBookingSelected: () -> Unit,
+    onAdminSelected:   () -> Unit,
     onLogoutSelected: () -> Unit
 ) {
     Column(modifier = Modifier.padding(16.dp)) {
@@ -53,6 +55,13 @@ fun DrawerContent(
 
             DrawerItem(text = "Umów wizytę", onClick = onBookingSelected)
             Spacer(modifier = Modifier.height(12.dp))
+
+            // ← TYLKO DLA ADMINA LUB LEKARZA
+            if (currentUserRole == "admin" || currentUserRole == "doctor") {
+                Divider(modifier = Modifier.padding(vertical = 8.dp))
+                DrawerItem(text = "Panel administracyjny", onClick = onAdminSelected)
+                Spacer(Modifier.height(12.dp))
+            }
 
             DrawerItem(text = "Wyloguj", onClick = onLogoutSelected)
         }

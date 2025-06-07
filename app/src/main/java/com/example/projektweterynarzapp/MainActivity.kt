@@ -21,6 +21,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 
 import androidx.compose.runtime.rememberCoroutineScope
@@ -55,10 +56,16 @@ class MainActivity : ComponentActivity() {
                 val navController = rememberNavController()
                 val drawerState = rememberDrawerState(DrawerValue.Closed)
                 val scope = rememberCoroutineScope()
-
-                // listener FirebaseAuth, jak poprzednio
                 val firebaseAuth = FirebaseAuth.getInstance()
+                val authRepo = remember { AuthRepository() }
+
+                // 1) Stan dla aktualnego użytkownika
                 var currentUser by remember { mutableStateOf(firebaseAuth.currentUser) }
+
+                // 2) Stan dla roli (nullable)
+                var userRole by remember { mutableStateOf<String?>(null) }
+
+                // 3) Nasłuchiwacz zmian w currentUser (logowanie / wylogowanie)
                 DisposableEffect(firebaseAuth) {
                     val listener = FirebaseAuth.AuthStateListener { auth ->
                         currentUser = auth.currentUser
@@ -66,7 +73,12 @@ class MainActivity : ComponentActivity() {
                     firebaseAuth.addAuthStateListener(listener)
                     onDispose { firebaseAuth.removeAuthStateListener(listener) }
                 }
-                val authRepo = remember { AuthRepository() }
+
+                // 4) Gdy currentUser się zmieni, pobieramy rolę z Firestore
+                LaunchedEffect(currentUser) {
+                    userRole = currentUser
+                        ?.let { authRepo.getUserProfile(it.uid)?.role }
+                }
 
                 ModalNavigationDrawer(
                     drawerState = drawerState,
@@ -74,6 +86,7 @@ class MainActivity : ComponentActivity() {
                         ModalDrawerSheet {
                             DrawerContent(
                                 currentUser = currentUser,
+                                currentUserRole = userRole,       // teraz na pewno nie nullieje zbyt późno
                                 onHomeSelected = {
                                     scope.launch {
                                         drawerState.close()
@@ -112,6 +125,12 @@ class MainActivity : ComponentActivity() {
                                         navController.navigate(Screen.Booking.route)
                                     }
                                 },
+                                onAdminSelected = {
+                                    scope.launch {
+                                        drawerState.close()
+                                        navController.navigate(Screen.Admin.route)
+                                    }
+                                },
                                 onLogoutSelected = {
                                     scope.launch {
                                         drawerState.close()
@@ -128,19 +147,16 @@ class MainActivity : ComponentActivity() {
                     Scaffold(
                         topBar = {
                             TopAppBar(
-                                title = { Text(text = "BKRJ Vet") },
+                                title = { Text("BKRJ Vet") },
                                 navigationIcon = {
                                     IconButton(onClick = { scope.launch { drawerState.open() } }) {
-                                        Icon(
-                                            imageVector = Icons.Default.Menu,
-                                            contentDescription = "Menu"
-                                        )
+                                        Icon(Icons.Default.Menu, contentDescription = "Menu")
                                     }
                                 }
                             )
                         },
                         content = { innerPadding ->
-                            Box(modifier = Modifier.padding(innerPadding)) {
+                            Box(Modifier.padding(innerPadding)) {
                                 Navigation(
                                     navController = navController,
                                     startDestination = Screen.Home.route
@@ -153,4 +169,5 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
+
 

@@ -5,44 +5,21 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.ModalDrawerSheet
-import androidx.compose.material3.ModalNavigationDrawer
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.DrawerValue
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.rememberDrawerState
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableStateOf
-
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.remember
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.rememberNavController
-
 import kotlinx.coroutines.launch
-
 import com.google.firebase.FirebaseApp
-import com.google.firebase.auth.FirebaseUser
-import com.example.projektweterynarzapp.data.AuthRepository
-import com.example.projektweterynarzapp.ui.navigation.DrawerContent
-import com.example.projektweterynarzapp.ui.navigation.Navigation
-import com.example.projektweterynarzapp.ui.navigation.Screen
-import com.example.projektweterynarzapp.ui.theme.ProjektWeterynarzAppTheme
 import com.google.firebase.auth.FirebaseAuth
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-
-
+import com.example.projektweterynarzapp.data.AuthRepository
+import com.example.projektweterynarzapp.ui.navigation.*
+import com.example.projektweterynarzapp.ui.theme.ProjektWeterynarzAppTheme
 
 class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
@@ -58,6 +35,9 @@ class MainActivity : ComponentActivity() {
                 val scope = rememberCoroutineScope()
                 val firebaseAuth = FirebaseAuth.getInstance()
                 val authRepo = remember { AuthRepository() }
+
+                // ← Nowy stan Snackbar
+                val snackbarHostState = remember { SnackbarHostState() }
 
                 // 1) Stan dla aktualnego użytkownika
                 var currentUser by remember { mutableStateOf(firebaseAuth.currentUser) }
@@ -86,7 +66,7 @@ class MainActivity : ComponentActivity() {
                         ModalDrawerSheet {
                             DrawerContent(
                                 currentUser = currentUser,
-                                currentUserRole = userRole,       // teraz na pewno nie nullieje zbyt późno
+                                currentUserRole = userRole,
                                 onHomeSelected = {
                                     scope.launch {
                                         drawerState.close()
@@ -138,6 +118,8 @@ class MainActivity : ComponentActivity() {
                                         navController.navigate(Screen.Home.route) {
                                             popUpTo(Screen.Home.route) { inclusive = true }
                                         }
+                                        // ← Po wylogowaniu pokaż Snackbar z potwierdzeniem
+                                        snackbarHostState.showSnackbar("Wylogowano")
                                     }
                                 }
                             )
@@ -155,6 +137,27 @@ class MainActivity : ComponentActivity() {
                                 }
                             )
                         },
+                        // ← Snackbar z białym tłem i wyśrodkowanym tekstem
+                        snackbarHost = {
+                            SnackbarHost(hostState = snackbarHostState) { data ->
+                                Snackbar(
+                                    containerColor = MaterialTheme.colorScheme.surface,
+                                    contentColor = MaterialTheme.colorScheme.onSurface,
+                                    shape = MaterialTheme.shapes.medium,
+                                    modifier = Modifier
+                                        .padding(horizontal = 16.dp)
+                                        .fillMaxWidth()
+                                ) {
+                                    Box(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(data.visuals.message)
+                                    }
+                                }
+                            }
+                        }
+                        ,
                         content = { innerPadding ->
                             Box(Modifier.padding(innerPadding)) {
                                 Navigation(
@@ -169,5 +172,3 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
-
-

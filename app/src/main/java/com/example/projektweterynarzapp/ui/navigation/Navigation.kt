@@ -16,6 +16,7 @@ sealed class Screen(val route: String) {
     object Profile : Screen("profile_screen")
     object Pets : Screen("pets_screen")
     object Booking : Screen("booking_screen")
+    object MyAppointments : Screen("my_appointments_screen")
     object BookingDate : Screen("booking_date/{location}") {
         fun createRoute(location: String) = "booking_date/$location"
     }
@@ -90,6 +91,12 @@ fun Navigation(
                 onNavigateBack = { navController.popBackStack() }
             )
         }
+
+        composable(Screen.MyAppointments.route) {
+            MyAppointmentsScreen()
+        }
+
+
         composable(Screen.Booking.route) {
             BookingScreen(
                 onSelectLocation = { location ->

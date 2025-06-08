@@ -278,6 +278,32 @@ class AuthRepository {
         }
     }
 
+    /** Zwraca referencję do subkolekcji bookings dla zalogowanego usera */
+    private fun bookingsCollection() = db.collection("users")
+        .document(auth.currentUser?.uid ?: "")
+        .collection("bookings")
+
+
+    /**
+     * Pobranie listy wizyt użytkownika.
+     */
+    suspend fun getBookings(): List<Booking> {
+        val user = auth.currentUser ?: return emptyList()
+        return try {
+            val snapshot = bookingsCollection().get().await()
+            snapshot.documents.mapNotNull { doc ->
+                // Mapa dokumentu na Booking, z id = doc.id
+                val booking = doc.toObject(Booking::class.java)
+                booking?.copy(id = doc.id)
+            }
+        } catch (e: Exception) {
+            Log.e("AuthRepository", "getBookings: błąd przy pobieraniu wizyt", e)
+            emptyList()
+        }
+    }
+
+
+
 }
 
 

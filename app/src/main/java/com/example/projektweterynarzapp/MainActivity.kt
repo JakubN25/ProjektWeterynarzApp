@@ -121,6 +121,12 @@ class MainActivity : ComponentActivity() {
                                         // ← Po wylogowaniu pokaż Snackbar z potwierdzeniem
                                         snackbarHostState.showSnackbar("Wylogowano")
                                     }
+                                },
+                                onAppointmentsSelected = {
+                                    scope.launch {
+                                        drawerState.close()
+                                        navController.navigate(Screen.MyAppointments.route)
+                                    }
                                 }
                             )
                         }

@@ -1,11 +1,7 @@
 package com.example.projektweterynarzapp.ui.navigation
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Divider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -24,7 +20,8 @@ fun DrawerContent(
     onProfileSelected: () -> Unit,
     onPetsSelected: () -> Unit,
     onBookingSelected: () -> Unit,
-    onAdminSelected:   () -> Unit,
+    onAppointmentsSelected: () -> Unit, // ← dodano nowy callback
+    onAdminSelected: () -> Unit,
     onLogoutSelected: () -> Unit
 ) {
     Column(modifier = Modifier.padding(16.dp)) {
@@ -54,7 +51,11 @@ fun DrawerContent(
             Spacer(Modifier.height(12.dp))
 
             DrawerItem(text = "Umów wizytę", onClick = onBookingSelected)
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(Modifier.height(12.dp))
+
+            // ← NOWA POZYCJA DLA “Moje wizyty”
+            DrawerItem(text = "Moje wizyty", onClick = onAppointmentsSelected)
+            Spacer(Modifier.height(12.dp))
 
             // ← TYLKO DLA ADMINA LUB LEKARZA
             if (currentUserRole == "admin" || currentUserRole == "doctor") {

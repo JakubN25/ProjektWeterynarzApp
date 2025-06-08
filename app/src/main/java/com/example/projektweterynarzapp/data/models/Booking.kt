@@ -1,10 +1,12 @@
 package com.example.projektweterynarzapp.data.models
 
 import com.google.firebase.Timestamp
+import com.google.firebase.firestore.Exclude
 import com.google.firebase.firestore.IgnoreExtraProperties
 
 @IgnoreExtraProperties
 data class Booking(
+    @get:Exclude val id: String = "",
     val userId: String = "",
     val location: String = "",
     val date: String = "",     // yyyy-MM-dd

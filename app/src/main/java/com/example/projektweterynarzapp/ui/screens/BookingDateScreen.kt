@@ -18,23 +18,14 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.example.projektweterynarzapp.ui.navigation.Screen
 import com.example.projektweterynarzapp.data.AuthRepository
-
-import java.time.Instant
-import java.time.LocalDate
-import java.time.LocalTime
-import java.time.ZoneId
+import java.time.*
 import java.time.format.DateTimeFormatter
-
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.material3.SelectableDates
 
-/**
- * Ekran: „Wybierz termin wizyty – {location}”
- *
- * Po kliknięciu godziny nawigujemy do ekranu BookingDetails.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BookingDateScreen(
@@ -44,20 +35,30 @@ fun BookingDateScreen(
     val authRepo = remember { AuthRepository() }
     val context = LocalContext.current
 
-    // Czy pokazujemy dialog kalendarza?
     var showDatePicker by remember { mutableStateOf(false) }
-
-    // Wybrana data
     var selectedDate by remember { mutableStateOf<LocalDate?>(null) }
 
-    // State dla DatePickerDialog
-    val datePickerState = rememberDatePickerState()
+    val today = LocalDate.now()
+    val todayMillis = today.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
 
-    // Lista godzin co 20 min: 08:00..17:40
+    val datePickerState = rememberDatePickerState(
+        initialSelectedDateMillis = todayMillis,
+        initialDisplayedMonthMillis = todayMillis,
+        selectableDates = object : SelectableDates {
+            override fun isSelectableDate(utcTimeMillis: Long): Boolean {
+                val pickedDate = Instant
+                    .ofEpochMilli(utcTimeMillis)
+                    .atZone(ZoneId.systemDefault())
+                    .toLocalDate()
+                return !pickedDate.isBefore(today)
+            }
+        }
+    )
+
     val timeFormatter = DateTimeFormatter.ofPattern("HH:mm")
     val timeSlots: List<String> by remember {
         mutableStateOf(
-            generateSequence(LocalTime.of(8, 0)) { prev -> prev.plusMinutes(20) }
+            generateSequence(LocalTime.of(8, 0)) { it.plusMinutes(20) }
                 .takeWhile { it <= LocalTime.of(17, 40) }
                 .map { it.format(timeFormatter) }
                 .toList()
@@ -76,7 +77,6 @@ fun BookingDateScreen(
                     )
                 },
                 navigationIcon = {
-                    // ← Strzałka „wstecz” – wracamy do wyboru lokalu
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Wstecz")
                     }
@@ -94,7 +94,6 @@ fun BookingDateScreen(
         ) {
             Spacer(modifier = Modifier.height(8.dp))
 
-            // 1) Przycisk „Wybierz datę”
             Button(
                 onClick = { showDatePicker = true },
                 modifier = Modifier
@@ -112,11 +111,8 @@ fun BookingDateScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 2) Po wybraniu daty wyświetlamy siatkę godzin
             selectedDate?.let { date ->
                 val formattedDate = date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
-                // Uwaga: tutaj formatujemy datę w formacie ISO (yyyy-MM-dd),
-                // żeby łatwo przekazać ją jako argument w trasie
 
                 Text(
                     text = date.format(DateTimeFormatter.ofPattern("dd-MM-yyyy")),
@@ -135,18 +131,23 @@ fun BookingDateScreen(
                     contentPadding = PaddingValues(bottom = 16.dp)
                 ) {
                     items(timeSlots) { slot ->
+                        val slotTime = LocalTime.parse(slot, timeFormatter)
+                        val isToday = date == LocalDate.now()
+                        val nowTime = LocalTime.now()
+                        val isPastTime = isToday && slotTime.isBefore(nowTime)
+
                         OutlinedButton(
                             onClick = {
-                                // 3) Po kliknięciu godziny nawigujemy:
-                                // parametry: location / date / hour
-                                navController.navigate(
-                                    Screen.BookingDetails
-                                        .createRoute(location, formattedDate, slot)
-                                )
+                                if (!isPastTime) {
+                                    navController.navigate(
+                                        Screen.BookingDetails.createRoute(location, formattedDate, slot)
+                                    )
+                                }
                             },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(48.dp)
+                                .height(48.dp),
+                            enabled = !isPastTime
                         ) {
                             Text(
                                 text = slot,
@@ -158,7 +159,6 @@ fun BookingDateScreen(
             }
         }
 
-        // 4) Dialog: DatePicker
         if (showDatePicker) {
             DatePickerDialog(
                 onDismissRequest = { showDatePicker = false },

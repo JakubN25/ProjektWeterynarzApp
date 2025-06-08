@@ -236,6 +236,7 @@ class AuthRepository {
         hour: String,
         petId: String,
         petName: String,
+        petSpecies: String,
         visitType: String,
         doctorId: String,
         doctorName: String
@@ -250,6 +251,7 @@ class AuthRepository {
             hour       = hour,
             petId      = petId,
             petName    = petName,
+            petSpecies = petSpecies,
             visitType  = visitType,
             doctorId   = doctorId,
             doctorName = doctorName,

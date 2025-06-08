@@ -131,6 +131,7 @@ fun BookingDetailsScreen(
                             hour       = hour,
                             petId      = chosenPet?.id ?: "",
                             petName    = chosenPet?.name ?: "",
+                            petSpecies = chosenPet?.species ?: "",
                             visitType  = visitType,
                             doctorId   = docId,
                             doctorName = docName

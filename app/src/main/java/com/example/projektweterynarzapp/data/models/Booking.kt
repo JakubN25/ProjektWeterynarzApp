@@ -13,6 +13,7 @@ data class Booking(
     val hour: String = "",     // HH:mm
     val petId: String = "",
     val petName: String = "",
+    val petSpecies: String = "",
     val visitType: String = "",
     val doctorId:  String = "",
     val doctorName:String = "",

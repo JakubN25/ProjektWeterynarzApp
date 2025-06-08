@@ -61,7 +61,7 @@ fun BookingCard(booking: Booking) {
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text("Zwierzak: ${booking.petName}", style = MaterialTheme.typography.titleMedium)
+            Text("Zwierzak: ${booking.petName} (${booking.petSpecies})", style = MaterialTheme.typography.titleMedium)
             Text("Rodzaj: ${booking.visitType}")
             Text("Data: ${booking.date} ${booking.hour}")
             Text("Lokalizacja: ${booking.location}")

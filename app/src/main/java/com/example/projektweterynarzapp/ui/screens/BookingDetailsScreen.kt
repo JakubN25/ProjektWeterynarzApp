@@ -347,10 +347,15 @@ fun BookingDetailsForm(
 
             Spacer(modifier = Modifier.height(24.dp))
 
+            val isFormValid = selectedPet != null && selectedVisitType != null && selectedDoctor != null
+
             Button(
                 onClick = {
-                    onConfirm(selectedPet, selectedVisitType.orEmpty(), selectedDoctor)
+                    if (isFormValid) {
+                        onConfirm(selectedPet, selectedVisitType!!, selectedDoctor!!)
+                    }
                 },
+                enabled = isFormValid, // ← tylko jeśli wszystko uzupełnione
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp)

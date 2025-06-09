@@ -10,11 +10,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
 /**
- * Prosty placeholder dla panelu lekarza/administratora.
- * Tutaj możesz dodać przyciski do zarządzania terminami, statystykami itd.
+ * Panel administracyjny dostępny tylko dla roli = admin lub doctor
+ * Dodano możliwość przejścia do ekranu zarządzania grafikami lekarzy.
  */
 @Composable
-fun AdminScreen() {
+fun AdminScreen(
+    onManageSchedules: () -> Unit
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -22,16 +24,12 @@ fun AdminScreen() {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = "Panel lekarza / administratora",
+            text = "Panel administracyjny",
             style = MaterialTheme.typography.headlineMedium
         )
         Spacer(modifier = Modifier.height(16.dp))
-        Button(onClick = { /* TODO: przejdź do listy wizyt */ }) {
-            Text("Zarządzaj wizytami")
-        }
-        Spacer(modifier = Modifier.height(8.dp))
-        Button(onClick = { /* TODO: statystyki, zarządzanie użytkownikami */ }) {
-            Text("Statystyki kliniki")
+        Button(onClick = onManageSchedules) {
+            Text("Zarządzaj grafikami lekarzy")
         }
     }
 }

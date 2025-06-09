@@ -2,6 +2,7 @@ package com.example.projektweterynarzapp.data
 
 import android.util.Log
 import com.example.projektweterynarzapp.data.models.Booking
+import com.example.projektweterynarzapp.data.models.DoctorSchedule
 import com.example.projektweterynarzapp.data.models.Pet
 import com.example.projektweterynarzapp.data.models.User
 import com.google.firebase.Timestamp
@@ -307,6 +308,45 @@ class AuthRepository {
             emptyList()
         }
     }
+
+    class ScheduleRepository {
+        private val db = FirebaseFirestore.getInstance()
+
+        // Ścieżka: kolekcja "schedules", dokument = doctorId
+        private fun scheduleDoc(doctorId: String) =
+            db.collection("schedules").document(doctorId)
+
+        suspend fun getSchedule(doctorId: String): DoctorSchedule? {
+            return try {
+                val snap = scheduleDoc(doctorId).get().await()
+                snap.toObject(DoctorSchedule::class.java)
+            } catch (e: Exception) {
+                e.printStackTrace()
+                null
+            }
+        }
+
+        suspend fun saveSchedule(schedule: DoctorSchedule): Boolean {
+            return try {
+                scheduleDoc(schedule.doctorId).set(schedule).await()
+                true
+            } catch (e: Exception) {
+                e.printStackTrace()
+                false
+            }
+        }
+
+        suspend fun getAllDoctorsSchedules(): List<DoctorSchedule> {
+            return try {
+                val snap = db.collection("schedules").get().await()
+                snap.documents.mapNotNull { it.toObject(DoctorSchedule::class.java) }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                emptyList()
+            }
+        }
+    }
+
 
 
 

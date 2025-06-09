@@ -161,12 +161,13 @@ class AuthRepository {
     suspend fun addPet(pet: Pet): Boolean {
         if (auth.currentUser == null) return false
         return try {
-            // Dane do wrzucenia – Firestore wygeneruje id
             val data = hashMapOf(
-                "name" to pet.name,
+                "name"    to pet.name,
                 "species" to pet.species,
-                "size" to pet.size,   // <-- dorzucamy rozmiar
-                "age" to pet.age
+                "breed"   to pet.breed,
+                "age"     to pet.age,
+                "weight"  to pet.weight,
+                "sex"     to pet.sex
             )
             petsCollection().add(data).await()
             true
@@ -176,18 +177,20 @@ class AuthRepository {
         }
     }
 
+
     /**
      * Aktualizacja istniejącego zwierzaka (musi mieć w pet.id poprawne id dokumentu).
      */
     suspend fun updatePet(pet: Pet): Boolean {
-        if (auth.currentUser == null) return false
-        if (pet.id.isBlank()) return false
+        if (auth.currentUser == null || pet.id.isBlank()) return false
         return try {
             val data = hashMapOf(
-                "name" to pet.name,
+                "name"    to pet.name,
                 "species" to pet.species,
-                "size" to pet.size,   // <-- dorzucamy rozmiar
-                "age" to pet.age
+                "breed"   to pet.breed,
+                "age"     to pet.age,
+                "weight"  to pet.weight,
+                "sex"     to pet.sex
             )
             petsCollection().document(pet.id).set(data).await()
             true
@@ -196,6 +199,7 @@ class AuthRepository {
             false
         }
     }
+
 
     /**
      * Usunięcie zwierzaka o danym id.

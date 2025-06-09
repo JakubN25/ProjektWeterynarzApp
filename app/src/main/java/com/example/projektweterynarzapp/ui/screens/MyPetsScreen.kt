@@ -12,11 +12,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.example.projektweterynarzapp.data.AuthRepository
 import com.example.projektweterynarzapp.data.models.Pet
 import kotlinx.coroutines.launch
-import androidx.compose.ui.text.input.KeyboardType
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -27,12 +27,14 @@ fun MyPetsScreen(onNavigateBack: () -> Boolean) {
     // Pola formularza „Dodaj nowe zwierzę”
     var name by remember { mutableStateOf("") }
     var species by remember { mutableStateOf("") }
+    var breed by remember { mutableStateOf("") }
     var ageText by remember { mutableStateOf("") }
+    var weightText by remember { mutableStateOf("") }
+    var sex by remember { mutableStateOf("") }
 
-    // Stan dla „rozmiaru” w formularzu dodawania:
-    var size by remember { mutableStateOf("") }
-    var expandedSize by remember { mutableStateOf(false) }
-    val sizeOptions = listOf("Mały", "Średni", "Duży")
+    // Dropdown dla płci
+    var expandedSex by remember { mutableStateOf(false) }
+    val sexOptions = listOf("Samiec", "Samica")
 
     // Lista pets + ładowanie
     var pets by remember { mutableStateOf<List<Pet>>(emptyList()) }
@@ -57,7 +59,6 @@ fun MyPetsScreen(onNavigateBack: () -> Boolean) {
         topBar = {
             TopAppBar(
                 title = { Text("Moje zwierzęta") }
-                // Usunięto navigationIcon – cofanie nie jest dostępne
             )
         },
         content = { innerPadding ->
@@ -81,7 +82,7 @@ fun MyPetsScreen(onNavigateBack: () -> Boolean) {
                     Spacer(modifier = Modifier.height(8.dp))
                 }
 
-                // ---- Imię zwierzaka ----
+                // Imię zwierzaka
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
@@ -91,7 +92,7 @@ fun MyPetsScreen(onNavigateBack: () -> Boolean) {
                 )
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // ---- Gatunek ----
+                // Gatunek
                 OutlinedTextField(
                     value = species,
                     onValueChange = { species = it },
@@ -101,64 +102,83 @@ fun MyPetsScreen(onNavigateBack: () -> Boolean) {
                 )
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // ---- Rozmiar (usuń etykietę – zostaje tylko dropdown) ----
+                // Rasa
+                OutlinedTextField(
+                    value = breed,
+                    onValueChange = { breed = it },
+                    label = { Text("Rasa") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Waga
+                OutlinedTextField(
+                    value = weightText,
+                    onValueChange = {
+                        if (it.all { c -> c.isDigit() || c == '.' }) {
+                            weightText = it
+                        }
+                    },
+                    label = { Text("Waga (kg)") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                // Wiek
+                OutlinedTextField(
+                    value = ageText,
+                    onValueChange = { if (it.all { c -> c.isDigit() }) ageText = it },
+                    label = { Text("Wiek (lata)") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                // Płeć (dropdown)
                 Box(modifier = Modifier.fillMaxWidth()) {
                     OutlinedTextField(
-                        value = size,
+                        value = sex,
                         onValueChange = { /* brak ręcznej edycji */ },
-                        placeholder = { Text("Wybierz rozmiar") },
+                        placeholder = { Text("Wybierz płeć") },
                         readOnly = true,
                         trailingIcon = {
                             Icon(
-                                imageVector = if (expandedSize) Icons.Filled.ArrowDropUp else Icons.Filled.ArrowDropDown,
+                                imageVector = if (expandedSex) Icons.Filled.ArrowDropUp else Icons.Filled.ArrowDropDown,
                                 contentDescription = null,
-                                modifier = Modifier.clickable { expandedSize = !expandedSize }
+                                modifier = Modifier.clickable { expandedSex = !expandedSex }
                             )
                         },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { expandedSize = true }
+                            .clickable { expandedSex = true }
                     )
                     DropdownMenu(
-                        expanded = expandedSize,
-                        onDismissRequest = { expandedSize = false },
+                        expanded = expandedSex,
+                        onDismissRequest = { expandedSex = false },
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        sizeOptions.forEach { option ->
+                        sexOptions.forEach { option ->
                             DropdownMenuItem(
-                                text = { Text(text = option) },
+                                text = { Text(option) },
                                 onClick = {
-                                    size = option
-                                    expandedSize = false
+                                    sex = option
+                                    expandedSex = false
                                 }
                             )
                         }
                     }
                 }
-                Spacer(modifier = Modifier.height(8.dp))
 
-                // ---- Wiek ----
-                OutlinedTextField(
-                    value = ageText,
-                    onValueChange = {
-                        // przyjmujemy tylko cyfry
-                        if (it.all { char -> char.isDigit() }) {
-                            ageText = it
-                        }
-                    },
-                    label = { Text("Wiek") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.fillMaxWidth()
-                )
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // ---- Przycisk „Dodaj zwierzaka” ----
+                // Przycisk „Dodaj zwierzaka”
                 Button(
                     onClick = {
-                        // Walidacja: wszystkie pola muszą być uzupełnione
                         val age = ageText.toIntOrNull() ?: -1
-                        if (name.isBlank() || species.isBlank() || size.isBlank() || age < 0) {
+                        val weight = weightText.toDoubleOrNull() ?: -1.0
+                        if (name.isBlank() || species.isBlank() || breed.isBlank() || sex.isBlank() || age < 0 || weight <= 0) {
                             errorMessage = "Proszę wypełnić wszystkie pola prawidłowo."
                             return@Button
                         }
@@ -167,19 +187,17 @@ fun MyPetsScreen(onNavigateBack: () -> Boolean) {
                         coroutineScope.launch {
                             val success = authRepo.addPet(
                                 Pet(
-                                    id = "",  // Firestore sam wygeneruje
+                                    id = "",
                                     name = name.trim(),
                                     species = species.trim(),
-                                    size = size,
-                                    age = age
+                                    breed = breed.trim(),
+                                    age = age,
+                                    weight = weight,
+                                    sex = sex
                                 )
                             )
                             if (success) {
-                                // Wyczyszczenie formularza
-                                name = ""
-                                species = ""
-                                size = ""
-                                ageText = ""
+                                name = ""; species = ""; breed = ""; ageText = ""; weightText = ""; sex = ""
                                 loadPets()
                             } else {
                                 errorMessage = "Dodanie zwierzaka nie powiodło się."
@@ -192,7 +210,7 @@ fun MyPetsScreen(onNavigateBack: () -> Boolean) {
                 }
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // ---- Lista istniejących zwierzaków ----
+                // Lista istniejących zwierzaków
                 Text(
                     text = "Moje zwierzęta:",
                     style = MaterialTheme.typography.headlineSmall
@@ -240,7 +258,6 @@ fun MyPetsScreen(onNavigateBack: () -> Boolean) {
     )
 }
 
-
 @Composable
 private fun PetRow(
     pet: Pet,
@@ -250,34 +267,30 @@ private fun PetRow(
     var isEditing by remember { mutableStateOf(false) }
     var name by remember { mutableStateOf(pet.name) }
     var species by remember { mutableStateOf(pet.species) }
+    var breed by remember { mutableStateOf(pet.breed) }
     var ageText by remember { mutableStateOf(pet.age.toString()) }
+    var weightText by remember { mutableStateOf(pet.weight.toString()) }
+    var sex by remember { mutableStateOf(pet.sex) }
 
-    // Nowe stany dla rozmiaru w trybie edycji
-    var size by remember { mutableStateOf(pet.size) }
-    var expandedSize by remember { mutableStateOf(false) }
-    val sizeOptions = listOf("Mały", "Średni", "Duży")
-
+    var expandedSex by remember { mutableStateOf(false) }
+    val sexOptions = listOf("Samiec", "Samica")
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     Column(modifier = Modifier.fillMaxWidth()) {
         if (!isEditing) {
-            // Tryb tylko‐do‐odczytu – wyświetlamy wszystkie pola, w tym rozmiar
             Text("Imię: ${pet.name}", style = MaterialTheme.typography.bodyLarge)
             Text("Gatunek: ${pet.species}", style = MaterialTheme.typography.bodyLarge)
-            Text("Rozmiar: ${pet.size}", style = MaterialTheme.typography.bodyLarge)
-            Text("Wiek: ${pet.age}", style = MaterialTheme.typography.bodyLarge)
+            Text("Rasa: ${pet.breed}", style = MaterialTheme.typography.bodyLarge)
+            Text("Waga: ${pet.weight} kg", style = MaterialTheme.typography.bodyLarge)
+            Text("Płeć: ${pet.sex}", style = MaterialTheme.typography.bodyLarge)
+            Text("Wiek: ${pet.age} lat", style = MaterialTheme.typography.bodyLarge)
             Spacer(modifier = Modifier.height(4.dp))
             Row {
-                TextButton(onClick = { isEditing = true }) {
-                    Text("Edytuj")
-                }
+                TextButton(onClick = { isEditing = true }) { Text("Edytuj") }
                 Spacer(modifier = Modifier.width(8.dp))
-                TextButton(onClick = onDelete) {
-                    Text("Usuń", color = MaterialTheme.colorScheme.error)
-                }
+                TextButton(onClick = onDelete) { Text("Usuń", color = MaterialTheme.colorScheme.error) }
             }
         } else {
-            // Tryb edycji – pozwalamy zmienić name, species, size i age
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
@@ -292,55 +305,64 @@ private fun PetRow(
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(modifier = Modifier.height(4.dp))
-
-            // --- Dropdown „Rozmiar” bez dodatkowej etykiety ---
+            OutlinedTextField(
+                value = breed,
+                onValueChange = { breed = it },
+                label = { Text("Rasa") },
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            // Waga
+            OutlinedTextField(
+                value = weightText,
+                onValueChange = { if (it.all { c -> c.isDigit() || c == '.' }) weightText = it },
+                label = { Text("Waga (kg)") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            OutlinedTextField(
+                value = ageText,
+                onValueChange = { if (it.all { c -> c.isDigit() }) ageText = it },
+                label = { Text("Wiek (lata)") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            // Płeć dropdown
             Box(modifier = Modifier.fillMaxWidth()) {
                 OutlinedTextField(
-                    value = size,
-                    onValueChange = { /* brak ręcznej edycji */ },
-                    placeholder = { Text("Wybierz rozmiar") },
+                    value = sex,
+                    onValueChange = { /* no-op */ },
+                    placeholder = { Text("Wybierz płeć") },
                     readOnly = true,
                     trailingIcon = {
                         Icon(
-                            imageVector = if (expandedSize) Icons.Filled.ArrowDropUp else Icons.Filled.ArrowDropDown,
+                            imageVector = if (expandedSex) Icons.Filled.ArrowDropUp else Icons.Filled.ArrowDropDown,
                             contentDescription = null,
-                            modifier = Modifier.clickable { expandedSize = !expandedSize }
+                            modifier = Modifier.clickable { expandedSex = !expandedSex }
                         )
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { expandedSize = true }
+                        .clickable { expandedSex = true }
                 )
                 DropdownMenu(
-                    expanded = expandedSize,
-                    onDismissRequest = { expandedSize = false },
+                    expanded = expandedSex,
+                    onDismissRequest = { expandedSex = false },
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    sizeOptions.forEach { option ->
+                    sexOptions.forEach { option ->
                         DropdownMenuItem(
-                            text = { Text(text = option) },
-                            onClick = {
-                                size = option
-                                expandedSize = false
-                            }
+                            text = { Text(option) },
+                            onClick = { sex = option; expandedSex = false }
                         )
                     }
                 }
             }
             Spacer(modifier = Modifier.height(4.dp))
-
-            OutlinedTextField(
-                value = ageText,
-                onValueChange = {
-                    if (it.all { c -> c.isDigit() }) {
-                        ageText = it
-                    }
-                },
-                label = { Text("Wiek") },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.fillMaxWidth()
-            )
             if (errorMessage != null) {
                 Text(
                     text = errorMessage ?: "",
@@ -352,7 +374,8 @@ private fun PetRow(
             Row {
                 Button(onClick = {
                     val age = ageText.toIntOrNull() ?: -1
-                    if (name.isBlank() || species.isBlank() || size.isBlank() || age < 0) {
+                    val weight = weightText.toDoubleOrNull() ?: -1.0
+                    if (name.isBlank() || species.isBlank() || breed.isBlank() || sex.isBlank() || age < 0 || weight <= 0) {
                         errorMessage = "Proszę poprawić dane."
                         return@Button
                     }
@@ -361,8 +384,10 @@ private fun PetRow(
                         pet.copy(
                             name = name.trim(),
                             species = species.trim(),
-                            size = size,
-                            age = age
+                            breed = breed.trim(),
+                            age = age,
+                            weight = weight,
+                            sex = sex
                         )
                     )
                     isEditing = false
@@ -371,11 +396,7 @@ private fun PetRow(
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 TextButton(onClick = {
-                    // przywrócenie wartości sprzed edycji
-                    name = pet.name
-                    species = pet.species
-                    size = pet.size
-                    ageText = pet.age.toString()
+                    name = pet.name; species = pet.species; breed = pet.breed; ageText = pet.age.toString(); weightText = pet.weight.toString(); sex = pet.sex;
                     errorMessage = null
                     isEditing = false
                 }) {

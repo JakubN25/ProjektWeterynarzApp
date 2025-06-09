@@ -24,11 +24,13 @@ data class User(
  */
 @IgnoreExtraProperties
 data class Pet(
-    val id: String = "",          // zostawiamy puste – w repo zwykle nadpiszemy id=doc.id
+    val id: String = "",          // Firestore nadpisze id subdokumentu
     val name: String = "",
     val species: String = "",
-    val size: String = "",
-    val age: Int = 0
+    val breed: String = "",       // <- nowa rasa
+    val age: Int = 0,             // wiek w latach
+    val weight: Double = 0.0,     // waga w kg
+    val sex: String = ""          // np. "Samiec" / "Samica"
 )
 
 

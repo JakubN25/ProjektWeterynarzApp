@@ -182,17 +182,6 @@ fun ProfileScreen(
                     Text("Zapisz zmiany")
                 }
             }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Button(
-                onClick = onNavigateBack,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(44.dp)
-            ) {
-                Text("Wróć")
-            }
         }
     }
 }

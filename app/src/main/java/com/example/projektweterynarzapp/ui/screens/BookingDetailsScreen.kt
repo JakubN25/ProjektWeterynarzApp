@@ -23,6 +23,11 @@ import com.example.projektweterynarzapp.ui.navigation.Screen
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.example.projektweterynarzapp.data.models.DoctorSchedule
+import java.time.format.DateTimeFormatter
+import java.time.LocalTime
+import java.time.LocalDate
+
 
 /**
  * Ekran: „Uzupełnij szczegóły wizyty”.
@@ -40,6 +45,8 @@ fun BookingDetailsScreen(
     navController: NavHostController
 ) {
     val authRepo = remember { AuthRepository() }
+    val scheduleRepo = remember { AuthRepository.ScheduleRepository() }
+
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
 
@@ -49,6 +56,9 @@ fun BookingDetailsScreen(
 
     var doctorList by remember { mutableStateOf<List<User>>(emptyList()) }
     var isLoadingDoctors by remember { mutableStateOf(true) }
+
+    var doctorSchedules by remember { mutableStateOf<List<DoctorSchedule>>(emptyList()) }
+    var isLoadingSchedules by remember { mutableStateOf(true) }
 
     // Pobrane raz
     LaunchedEffect(Unit) {
@@ -61,7 +71,35 @@ fun BookingDetailsScreen(
         isLoadingDoctors = true
         doctorList = authRepo.getDoctors()
         isLoadingDoctors = false
+
+        isLoadingSchedules = true
+        doctorSchedules = scheduleRepo.getAllDoctorsSchedules()
+        isLoadingSchedules = false
         }
+
+    // 2) Zmapuj grafiki po UID
+    val schedulesMap = remember(doctorSchedules) {
+        doctorSchedules.associateBy { it.doctorId }
+    }
+
+    // 3) Oblicz listę dostępnych lekarzy dla tego slotu:
+    val timeFormatter = DateTimeFormatter.ofPattern("HH:mm")
+    val slotTime = LocalTime.parse(hour, timeFormatter)
+    val dayName = LocalDate
+        .parse(date, DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+        .dayOfWeek
+        .name
+
+    val availableDoctors = remember(doctorList, schedulesMap) {
+        doctorList.filter { doc ->
+            schedulesMap[doc.uid]?.schedules?.get(dayName)?.let { tr ->
+                val start = LocalTime.parse(tr.start, timeFormatter)
+                val end   = LocalTime.parse(tr.end,   timeFormatter)
+                // dopuszczamy slot >= start i < end
+                !slotTime.isBefore(start) && slotTime.isBefore(end)
+            } ?: false
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -101,7 +139,7 @@ fun BookingDetailsScreen(
             BookingDetailsForm(
                 petList = petList,
                 isLoadingPets = isLoadingPets,
-                doctorList = doctorList,
+                doctorList        = availableDoctors,
                 isLoadingDoctors = isLoadingDoctors,
                 // w pliku BookingDetailsScreen.kt, wewnątrz onConfirm:
 

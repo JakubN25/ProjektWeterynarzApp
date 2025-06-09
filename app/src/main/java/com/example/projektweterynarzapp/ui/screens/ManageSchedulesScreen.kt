@@ -101,40 +101,40 @@ fun ManageSchedulesScreen(
             DayOfWeek.values()
                 .filter { it.value in DayOfWeek.MONDAY.value..DayOfWeek.FRIDAY.value }
                 .forEach { day ->
-                    // lokalne stany dla edycji tego wiersza
-                    var start by remember { mutableStateOf(scheduleMap[day.name]?.start.orEmpty()) }
-                    var end by remember { mutableStateOf(scheduleMap[day.name]?.end .orEmpty()) }
-
-                    // przy każdej zmianie pól, aktualizujemy mapę
-                    LaunchedEffect(start, end) {
-                        val m = scheduleMap.toMutableMap()
-                        if (start.isNotBlank() || end.isNotBlank()) {
-                            m[day.name] = TimeRange(start = start, end = end)
-                        } else {
-                            m.remove(day.name)
-                        }
-                        scheduleMap = m
-                    }
+                    // Pobieramy aktualne wartości z mapy (mogą być puste)
+                    val current = scheduleMap[day.name]
+                    val start = current?.start.orEmpty()
+                    val end   = current?.end  .orEmpty()
 
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text(
-                            text = day.name,
-                            modifier = Modifier.weight(1f)
-                        )
+                        Text(text = day.name, modifier = Modifier.weight(1f))
+
                         OutlinedTextField(
                             value = start,
-                            onValueChange = { start = it },
+                            onValueChange = { newStart ->
+                                // Zaktualizuj tylko start, zostaw end bez zmian
+                                scheduleMap = scheduleMap.toMutableMap().also {
+                                    it[day.name] = TimeRange(start = newStart, end = end)
+                                }
+                            },
                             label = { Text("Od") },
                             placeholder = { Text("--:--") },
                             modifier = Modifier.width(100.dp)
                         )
+
                         Spacer(Modifier.width(8.dp))
+
                         OutlinedTextField(
                             value = end,
-                            onValueChange = { end = it },
+                            onValueChange = { newEnd ->
+                                // Zaktualizuj tylko end, zostaw start bez zmian
+                                scheduleMap = scheduleMap.toMutableMap().also {
+                                    it[day.name] = TimeRange(start = start, end = newEnd)
+                                }
+                            },
                             label = { Text("Do") },
                             placeholder = { Text("--:--") },
                             modifier = Modifier.width(100.dp)

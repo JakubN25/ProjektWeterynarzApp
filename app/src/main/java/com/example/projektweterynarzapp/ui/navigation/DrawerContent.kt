@@ -58,7 +58,7 @@ fun DrawerContent(
             Spacer(Modifier.height(12.dp))
 
             // ← TYLKO DLA ADMINA LUB LEKARZA
-            if (currentUserRole == "admin" || currentUserRole == "doctor") {
+            if (currentUserRole == "admin") {
                 Divider(modifier = Modifier.padding(vertical = 8.dp))
                 DrawerItem(text = "Panel administracyjny", onClick = onAdminSelected)
                 Spacer(Modifier.height(12.dp))

@@ -1,6 +1,7 @@
 // ui/screens/BookingDateScreen.kt
 package com.example.projektweterynarzapp.ui.screens
 
+import android.util.Log
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -26,6 +27,11 @@ import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.SelectableDates
+import com.example.projektweterynarzapp.data.models.Booking
+import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.tasks.await
+import java.time.LocalTime
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -78,6 +84,47 @@ fun BookingDateScreen(
                 .map { it.format(timeFormatter) }
                 .toList()
         )
+    }
+
+    // ─────────── TU DODAJEMY STAN occupiedSlots ───────────
+    // zbiór slotów formatu "HH:mm", które mamy już zajęte przez bookings
+    var occupiedSlots by remember { mutableStateOf<Set<String>>(emptySet()) }
+
+    // ─────────── TU DODAJEMY EFFECT ładowania bookings ───────────
+    LaunchedEffect(selectedDate, doctorSchedules) {
+        val dateKey = selectedDate
+            ?.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+            ?: return@LaunchedEffect
+
+        val taken = mutableSetOf<String>()
+
+        doctorSchedules.map { it.doctorId }.forEach { docId ->
+            try {
+                val snap = FirebaseFirestore.getInstance()
+                    .collection("users")
+                    .document(docId)
+                    .collection("bookings")
+                    .whereEqualTo("date", dateKey)
+                    .get()
+                    .await()
+
+                snap.documents.mapNotNull { it.toObject(Booking::class.java) }
+                    .forEach { b ->
+                        val idx = timeSlots.indexOf(b.hour)
+                            .takeIf { it >= 0 } ?: return@forEach
+                        val span = (b.duration - 1) / 20
+                        for (i in 0..span) {
+                            timeSlots.getOrNull(idx + i)?.let { taken.add(it) }
+                        }
+                    }
+
+            } catch (e: Exception) {
+                Log.e("BookingDateScreen", "Can't load bookings for $docId: ${e.message}")
+                // jeśli błąd (np. PERMISSION_DENIED), po prostu pomijamy
+            }
+        }
+
+        occupiedSlots = taken
     }
 
     Scaffold(
@@ -156,14 +203,20 @@ fun BookingDateScreen(
                         val isAnyDoctorAvailable = doctorSchedules.any { ds ->
                             ds.schedules[dayName]?.let { tr ->
                                 val start = LocalTime.parse(tr.start, timeFormatter)
-                                val end = LocalTime.parse(tr.end, timeFormatter)
+                                val end   = LocalTime.parse(tr.end,   timeFormatter)
                                 !slotTime.isBefore(start) && slotTime.isBefore(end)
                             } ?: false
                         }
 
+                        // sprawdzamy, czy slot jest już w occupiedSlots
+                        val isOccupied = slot in occupiedSlots
+
+                        // finalny warunek włączenia przycisku
+                        val enabled = !isPastTime && isAnyDoctorAvailable && !isOccupied
+
                         OutlinedButton(
                             onClick = {
-                                if (!isPastTime && isAnyDoctorAvailable) {
+                                if (enabled) {
                                     navController.navigate(
                                         Screen.BookingDetails.createRoute(location, formattedDate, slot)
                                     )
@@ -172,7 +225,7 @@ fun BookingDateScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(48.dp),
-                            enabled = !isPastTime && isAnyDoctorAvailable
+                            enabled = enabled
                         ) {
                             Text(
                                 text = slot,

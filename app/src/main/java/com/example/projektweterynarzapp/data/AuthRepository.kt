@@ -10,6 +10,8 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
 import kotlin.text.get
 
 /**
@@ -248,12 +250,33 @@ class AuthRepository {
     ): Boolean {
         val clientUid = auth.currentUser?.uid ?: return false
 
-        // 1) przygotuj obiekt Booking z nowymi polami
+        // ======= parsowanie duration z nawiasu "(XX min)" =======
+        // szukamy grupy cyfr przed " min"
+        val regex = Regex("""\((\d+)\s*min\)""")
+        val duration: Int = regex.find(visitType)
+            ?.groupValues
+            ?.get(1)
+            ?.toIntOrNull()
+            ?: run {
+                Log.w("AuthRepo", "Nie udało się sparsować czasu z '$visitType', używam 20")
+                20
+            }
+
+        // ======= wyliczenie endHour jak dotąd, ale już z prawidłowym duration =======
+        val timeFormatter = DateTimeFormatter.ofPattern("HH:mm")
+        val startTime = LocalTime.parse(hour, timeFormatter)
+        // tu +duration (minut), a potem -1 minuty jeśli chcesz ostatnią minutę
+        val endTime = startTime.plusMinutes(duration.toLong()).minusMinutes(1)
+        val endHour = endTime.format(timeFormatter)
+
+        // 3) Tworzymy obiekt Booking z nowymi polami
         val booking = Booking(
             userId     = clientUid,
             location   = location,
             date       = date,
             hour       = hour,
+            endHour    = endHour,
+            duration   = duration,
             petId      = petId,
             petName    = petName,
             petSpecies = petSpecies,
@@ -263,27 +286,23 @@ class AuthRepository {
             createdAt  = Timestamp.now().toDate().toString()
         )
 
+        // 4) Zapis w Firestore (tak jak było)
         return try {
-            // 2) dodaj wizytę pod klientem
             db.collection("users")
                 .document(clientUid)
                 .collection("bookings")
-                .add(booking)
-                .await()
-
-            // 3) dodaj tę samą wizytę pod doktorem (po uid, bez szukania po imieniu)
+                .add(booking).await()
             db.collection("users")
                 .document(doctorId)
                 .collection("bookings")
-                .add(booking)
-                .await()
-
+                .add(booking).await()
             true
         } catch (e: Exception) {
             Log.e("AuthRepository", "addBooking failed", e)
             false
         }
     }
+
 
     /** Zwraca referencję do subkolekcji bookings dla zalogowanego usera */
     private fun bookingsCollection() = db.collection("users")

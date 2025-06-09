@@ -200,7 +200,7 @@ fun BookingDetailsForm(
     var selectedPet by remember { mutableStateOf<Pet?>(null) }
 
     var expandedVisitType by remember { mutableStateOf(false) }
-    val visitTypes = listOf("Kontrola (20 min)", "Szczepienie (30 min)", "Zabieg (120 min)")
+    val visitTypes = listOf("Kontrola (20 min)", "Szczepienie (40 min)", "Zabieg (120 min)")
     var selectedVisitType by remember { mutableStateOf<String?>(null) }
 
     var expandedDoctor by remember { mutableStateOf(false) }

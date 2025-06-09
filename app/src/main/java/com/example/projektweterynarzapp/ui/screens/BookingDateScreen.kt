@@ -1,4 +1,3 @@
-// ui/screens/BookingDateScreen.kt
 package com.example.projektweterynarzapp.ui.screens
 
 import android.util.Log
@@ -11,6 +10,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -20,6 +21,9 @@ import androidx.navigation.NavHostController
 import com.example.projektweterynarzapp.ui.navigation.Screen
 import com.example.projektweterynarzapp.data.AuthRepository
 import com.example.projektweterynarzapp.data.models.DoctorSchedule
+import com.example.projektweterynarzapp.data.models.Booking
+import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.tasks.await
 import java.time.*
 import java.time.format.DateTimeFormatter
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -27,11 +31,6 @@ import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.SelectableDates
-import com.example.projektweterynarzapp.data.models.Booking
-import com.google.firebase.firestore.FirebaseFirestore
-import kotlinx.coroutines.tasks.await
-import java.time.LocalTime
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -39,21 +38,16 @@ fun BookingDateScreen(
     location: String,
     navController: NavHostController
 ) {
-    val authRepo = remember { AuthRepository() }
     val scheduleRepo = remember { AuthRepository.ScheduleRepository() }
-    val context = LocalContext.current
 
-    // --- Załaduj wszystkie grafiki ---
-    var doctorSchedules by remember { mutableStateOf<List<DoctorSchedule>>(emptyList()) }
-    LaunchedEffect(Unit) {
-        doctorSchedules = scheduleRepo.getAllDoctorsSchedules()
-    }
-
-    // --- Data picker ---
+    // --- Stan DatePicker Dialog ---
     var showDatePicker by remember { mutableStateOf(false) }
-    var selectedDate by remember { mutableStateOf<LocalDate?>(null) }
+
     val today = LocalDate.now()
-    val todayMillis = today.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+    val todayMillis = today
+        .atStartOfDay(ZoneId.systemDefault())
+        .toInstant()
+        .toEpochMilli()
 
     val datePickerState = rememberDatePickerState(
         initialSelectedDateMillis = todayMillis,
@@ -64,18 +58,19 @@ fun BookingDateScreen(
                     .ofEpochMilli(utcTimeMillis)
                     .atZone(ZoneId.systemDefault())
                     .toLocalDate()
-                // nie przed dzisiaj
-                if (pickedDate.isBefore(today)) return false
-                // wyklucz weekend
-                return when (pickedDate.dayOfWeek) {
-                    DayOfWeek.SATURDAY, DayOfWeek.SUNDAY -> false
-                    else -> true
-                }
+                // nie przed dzisiaj i nie weekend
+                return !pickedDate.isBefore(today) &&
+                        pickedDate.dayOfWeek != DayOfWeek.SATURDAY &&
+                        pickedDate.dayOfWeek != DayOfWeek.SUNDAY
             }
         }
     )
 
-    // --- Generowanie slotów co 20 minut od 08:00 do 20:00 ---
+    // --- Stan aplikacji ---
+    var doctorSchedules by remember { mutableStateOf<List<DoctorSchedule>>(emptyList()) }
+    var selectedDate by remember { mutableStateOf<LocalDate?>(null) }
+    var occupiedSlots by remember { mutableStateOf<Set<String>>(emptySet()) }
+
     val timeFormatter = DateTimeFormatter.ofPattern("HH:mm")
     val timeSlots by remember {
         mutableStateOf(
@@ -86,23 +81,22 @@ fun BookingDateScreen(
         )
     }
 
-    // ─────────── TU DODAJEMY STAN occupiedSlots ───────────
-    // zbiór slotów formatu "HH:mm", które mamy już zajęte przez bookings
-    var occupiedSlots by remember { mutableStateOf<Set<String>>(emptySet()) }
+    // --- Ładujemy harmonogramy lekarzy raz ---
+    LaunchedEffect(Unit) {
+        doctorSchedules = scheduleRepo.getAllDoctorsSchedules()
+    }
 
-    // ─────────── TU DODAJEMY EFFECT ładowania bookings ───────────
+    // --- Gdy zmienia się data lub harmonogramy, pobieramy bookingi i budujemy occupiedSlots ---
     LaunchedEffect(selectedDate, doctorSchedules) {
-        val dateKey = selectedDate
-            ?.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+        val dateKey = selectedDate?.format(DateTimeFormatter.ISO_DATE)
             ?: return@LaunchedEffect
 
         val taken = mutableSetOf<String>()
-
-        doctorSchedules.map { it.doctorId }.forEach { docId ->
+        doctorSchedules.forEach { ds ->
             try {
                 val snap = FirebaseFirestore.getInstance()
                     .collection("users")
-                    .document(docId)
+                    .document(ds.doctorId)
                     .collection("bookings")
                     .whereEqualTo("date", dateKey)
                     .get()
@@ -110,20 +104,17 @@ fun BookingDateScreen(
 
                 snap.documents.mapNotNull { it.toObject(Booking::class.java) }
                     .forEach { b ->
-                        val idx = timeSlots.indexOf(b.hour)
-                            .takeIf { it >= 0 } ?: return@forEach
-                        val span = (b.duration - 1) / 20
-                        for (i in 0..span) {
-                            timeSlots.getOrNull(idx + i)?.let { taken.add(it) }
+                        val startIndex = timeSlots.indexOf(b.hour).takeIf { it >= 0 }
+                            ?: return@forEach
+                        val span = (b.duration / 20) - 1
+                        for (i in 0..span.coerceAtLeast(0)) {
+                            timeSlots.getOrNull(startIndex + i)?.let { taken.add(it) }
                         }
                     }
-
             } catch (e: Exception) {
-                Log.e("BookingDateScreen", "Can't load bookings for $docId: ${e.message}")
-                // jeśli błąd (np. PERMISSION_DENIED), po prostu pomijamy
+                Log.e("BookingDateScreen", "Błąd pobierania bookingów: ${e.localizedMessage}")
             }
         }
-
         occupiedSlots = taken
     }
 
@@ -155,6 +146,7 @@ fun BookingDateScreen(
         ) {
             Spacer(Modifier.height(8.dp))
 
+            // Przycisk otwierający DatePicker
             Button(
                 onClick = { showDatePicker = true },
                 modifier = Modifier
@@ -173,7 +165,6 @@ fun BookingDateScreen(
             Spacer(Modifier.height(16.dp))
 
             selectedDate?.let { date ->
-                val formattedDate = date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
                 val displayDate = date.format(DateTimeFormatter.ofPattern("dd-MM-yyyy"))
                 val dayName = date.dayOfWeek.name
 
@@ -183,6 +174,9 @@ fun BookingDateScreen(
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.padding(vertical = 8.dp)
                 )
+
+                val isToday = date == today
+                val nowTime = LocalTime.now()
 
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
@@ -195,72 +189,64 @@ fun BookingDateScreen(
                 ) {
                     items(timeSlots) { slot ->
                         val slotTime = LocalTime.parse(slot, timeFormatter)
-                        val isToday = date == LocalDate.now()
-                        val nowTime = LocalTime.now()
                         val isPastTime = isToday && slotTime.isBefore(nowTime)
 
-                        // czy choć jeden lekarz jest dostępny o tej godzinie
-                        val isAnyDoctorAvailable = doctorSchedules.any { ds ->
+                        val fitsSchedule = doctorSchedules.any { ds ->
                             ds.schedules[dayName]?.let { tr ->
                                 val start = LocalTime.parse(tr.start, timeFormatter)
-                                val end   = LocalTime.parse(tr.end,   timeFormatter)
+                                val end = LocalTime.parse(tr.end, timeFormatter)
                                 !slotTime.isBefore(start) && slotTime.isBefore(end)
                             } ?: false
                         }
 
-                        // sprawdzamy, czy slot jest już w occupiedSlots
-                        val isOccupied = slot in occupiedSlots
-
-                        // finalny warunek włączenia przycisku
-                        val enabled = !isPastTime && isAnyDoctorAvailable && !isOccupied
+                        val isOccupied = occupiedSlots.contains(slot)
+                        val enabled = !isPastTime && fitsSchedule && !isOccupied
 
                         OutlinedButton(
                             onClick = {
                                 if (enabled) {
                                     navController.navigate(
-                                        Screen.BookingDetails.createRoute(location, formattedDate, slot)
+                                        Screen.BookingDetails.createRoute(
+                                            location,
+                                            date.format(DateTimeFormatter.ISO_DATE),
+                                            slot
+                                        )
                                     )
                                 }
                             },
+                            enabled = enabled,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(48.dp),
-                            enabled = enabled
+                                .height(48.dp)
                         ) {
-                            Text(
-                                text = slot,
-                                style = MaterialTheme.typography.bodyLarge
-                            )
+                            Text(text = slot)
                         }
                     }
                 }
             }
         }
+    }
 
-        if (showDatePicker) {
-            DatePickerDialog(
-                onDismissRequest = { showDatePicker = false },
-                confirmButton = {
-                    TextButton(onClick = {
-                        datePickerState.selectedDateMillis?.let { epoch ->
-                            selectedDate = Instant
-                                .ofEpochMilli(epoch)
-                                .atZone(ZoneId.systemDefault())
-                                .toLocalDate()
-                        }
-                        showDatePicker = false
-                    }) {
-                        Text("OK")
+    // DatePickerDialog
+    if (showDatePicker) {
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    datePickerState.selectedDateMillis?.let { epoch ->
+                        selectedDate = Instant
+                            .ofEpochMilli(epoch)
+                            .atZone(ZoneId.systemDefault())
+                            .toLocalDate()
                     }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showDatePicker = false }) {
-                        Text("Anuluj")
-                    }
-                }
-            ) {
-                DatePicker(state = datePickerState)
+                    showDatePicker = false
+                }) { Text("OK") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) { Text("Anuluj") }
             }
+        ) {
+            DatePicker(state = datePickerState)
         }
     }
 }

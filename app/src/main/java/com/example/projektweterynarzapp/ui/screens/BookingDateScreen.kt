@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.example.projektweterynarzapp.ui.navigation.Screen
 import com.example.projektweterynarzapp.data.AuthRepository
+import com.example.projektweterynarzapp.data.models.DoctorSchedule
 import java.time.*
 import java.time.format.DateTimeFormatter
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -33,11 +34,18 @@ fun BookingDateScreen(
     navController: NavHostController
 ) {
     val authRepo = remember { AuthRepository() }
+    val scheduleRepo = remember { AuthRepository.ScheduleRepository() }
     val context = LocalContext.current
 
+    // --- Załaduj wszystkie grafiki ---
+    var doctorSchedules by remember { mutableStateOf<List<DoctorSchedule>>(emptyList()) }
+    LaunchedEffect(Unit) {
+        doctorSchedules = scheduleRepo.getAllDoctorsSchedules()
+    }
+
+    // --- Data picker ---
     var showDatePicker by remember { mutableStateOf(false) }
     var selectedDate by remember { mutableStateOf<LocalDate?>(null) }
-
     val today = LocalDate.now()
     val todayMillis = today.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
 
@@ -50,16 +58,23 @@ fun BookingDateScreen(
                     .ofEpochMilli(utcTimeMillis)
                     .atZone(ZoneId.systemDefault())
                     .toLocalDate()
-                return !pickedDate.isBefore(today)
+                // nie przed dzisiaj
+                if (pickedDate.isBefore(today)) return false
+                // wyklucz weekend
+                return when (pickedDate.dayOfWeek) {
+                    DayOfWeek.SATURDAY, DayOfWeek.SUNDAY -> false
+                    else -> true
+                }
             }
         }
     )
 
+    // --- Generowanie slotów co 20 minut od 08:00 do 20:00 ---
     val timeFormatter = DateTimeFormatter.ofPattern("HH:mm")
-    val timeSlots: List<String> by remember {
+    val timeSlots by remember {
         mutableStateOf(
             generateSequence(LocalTime.of(8, 0)) { it.plusMinutes(20) }
-                .takeWhile { it <= LocalTime.of(17, 40) }
+                .takeWhile { it <= LocalTime.of(20, 0) }
                 .map { it.format(timeFormatter) }
                 .toList()
         )
@@ -70,7 +85,7 @@ fun BookingDateScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "Wybierz termin wizyty – $location",
+                        text = "Wybierz termin – $location",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Medium,
                         modifier = Modifier.padding(start = 16.dp)
@@ -83,7 +98,6 @@ fun BookingDateScreen(
                 }
             )
         }
-
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -92,7 +106,7 @@ fun BookingDateScreen(
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(Modifier.height(8.dp))
 
             Button(
                 onClick = { showDatePicker = true },
@@ -105,17 +119,19 @@ fun BookingDateScreen(
                     contentDescription = "Wybierz datę",
                     modifier = Modifier.size(20.dp)
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(Modifier.width(8.dp))
                 Text("Wybierz datę")
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(Modifier.height(16.dp))
 
             selectedDate?.let { date ->
                 val formattedDate = date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+                val displayDate = date.format(DateTimeFormatter.ofPattern("dd-MM-yyyy"))
+                val dayName = date.dayOfWeek.name
 
                 Text(
-                    text = date.format(DateTimeFormatter.ofPattern("dd-MM-yyyy")),
+                    text = displayDate,
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.padding(vertical = 8.dp)
@@ -136,9 +152,18 @@ fun BookingDateScreen(
                         val nowTime = LocalTime.now()
                         val isPastTime = isToday && slotTime.isBefore(nowTime)
 
+                        // czy choć jeden lekarz jest dostępny o tej godzinie
+                        val isAnyDoctorAvailable = doctorSchedules.any { ds ->
+                            ds.schedules[dayName]?.let { tr ->
+                                val start = LocalTime.parse(tr.start, timeFormatter)
+                                val end = LocalTime.parse(tr.end, timeFormatter)
+                                !slotTime.isBefore(start) && slotTime.isBefore(end)
+                            } ?: false
+                        }
+
                         OutlinedButton(
                             onClick = {
-                                if (!isPastTime) {
+                                if (!isPastTime && isAnyDoctorAvailable) {
                                     navController.navigate(
                                         Screen.BookingDetails.createRoute(location, formattedDate, slot)
                                     )
@@ -147,7 +172,7 @@ fun BookingDateScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(48.dp),
-                            enabled = !isPastTime
+                            enabled = !isPastTime && isAnyDoctorAvailable
                         ) {
                             Text(
                                 text = slot,
@@ -164,10 +189,9 @@ fun BookingDateScreen(
                 onDismissRequest = { showDatePicker = false },
                 confirmButton = {
                     TextButton(onClick = {
-                        val epochMillis = datePickerState.selectedDateMillis
-                        if (epochMillis != null) {
+                        datePickerState.selectedDateMillis?.let { epoch ->
                             selectedDate = Instant
-                                .ofEpochMilli(epochMillis)
+                                .ofEpochMilli(epoch)
                                 .atZone(ZoneId.systemDefault())
                                 .toLocalDate()
                         }

@@ -217,44 +217,46 @@ fun BookingDetailsScreen(
                 // w pliku BookingDetailsScreen.kt, wewnątrz onConfirm:
 
                 onConfirm = { chosenPet, visitType, chosenDoctor ->
-                    // 1) Najpierw potwierdzenie dla użytkownika
-                    Toast.makeText(
-                        context,
-                        "Potwierdzono wizytę:\nZwierzak: ${chosenPet?.name}\n" +
-                                "Rodzaj: $visitType\nLekarz: $chosenDoctor\n" +
-                                "Data: $date $hour\nLokal: $location",
-                        Toast.LENGTH_LONG
-                    ).show()
-
-                    // 2) Nawigacja z powrotem do Home
-                    navController.popBackStack(Screen.Home.route, inclusive = false)
-                    navController.navigate(Screen.Home.route) {
-                        popUpTo(Screen.Home.route) { inclusive = true }
-                    }
-
-                    // 3) I równolegle – zapis w bazie
-                    val docId   = chosenDoctor?.uid ?: ""
-                    val docName = "${chosenDoctor?.firstName} ${chosenDoctor?.lastName}".trim()
+                    // 1) Wrzucamy całość do korutyny
                     coroutineScope.launch {
+                        // 2) Najpierw zapis
                         val ok = authRepo.addBooking(
                             location   = location,
                             date       = date,
                             hour       = hour,
-                            petId      = chosenPet?.id ?: "",
-                            petName    = chosenPet?.name ?: "",
-                            petSpecies = chosenPet?.species ?: "",
+                            petId      = chosenPet?.id.orEmpty(),
+                            petName    = chosenPet?.name.orEmpty(),
+                            petSpecies = chosenPet?.species.orEmpty(),
                             visitType  = visitType,
-                            doctorId   = docId,
-                            doctorName = docName
+                            doctorId   = chosenDoctor?.uid.orEmpty(),
+                            doctorName = "${chosenDoctor?.firstName} ${chosenDoctor?.lastName}".trim()
                         )
-                        Log.d("BookingDetails", "addBooking returned: $ok")
+
+                        // 3) Wracamy na główny wątek i reagujemy
                         withContext(Dispatchers.Main) {
-                            if (!ok) {
-                                Toast.makeText(context, "Nie udało się zapisać wizyty", Toast.LENGTH_LONG).show()
+                            if (ok) {
+                                Toast.makeText(context,
+                                    "Potwierdzono wizytę:\nZwierzak: ${chosenPet?.name}\n" +
+                                            "Rodzaj: $visitType\nLekarz: ${chosenDoctor?.firstName} ${chosenDoctor?.lastName}\n" +
+                                            "Data: $date $hour\nLokal: $location",
+                                    Toast.LENGTH_LONG
+                                ).show()
+
+                                // teraz (gdy już mamy pewność, że zapis przeszedł)
+                                navController.popBackStack(Screen.Home.route, inclusive = false)
+                                navController.navigate(Screen.Home.route) {
+                                    popUpTo(Screen.Home.route) { inclusive = true }
+                                }
+                            } else {
+                                Toast.makeText(context,
+                                    "Nie udało się zapisać wizyty",
+                                    Toast.LENGTH_LONG
+                                ).show()
                             }
                         }
                     }
                 }
+
             )
         }
     }

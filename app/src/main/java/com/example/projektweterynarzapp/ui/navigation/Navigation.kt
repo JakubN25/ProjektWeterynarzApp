@@ -29,6 +29,8 @@ sealed class Screen(val route: String) {
         }
     }
     object ManageSchedules : Screen("manage_schedules")
+    object ManageOffers : Screen("manage_offers")
+
 
 }
 
@@ -81,9 +83,13 @@ fun Navigation(
             AdminScreen(
                 onManageSchedules = {
                     navController.navigate(Screen.ManageSchedules.route)
+                },
+                onManageOffers = {
+                    navController.navigate(Screen.ManageOffers.route)
                 }
             )
         }
+
 
 
         composable(Screen.Profile.route) {
@@ -150,6 +156,13 @@ fun Navigation(
                 onBack = { navController.popBackStack() }
             )
         }
+
+        composable(Screen.ManageOffers.route) {
+            ManageVisitOffersScreen(
+                onBack = { navController.popBackStack() }
+            )
+        }
+
 
     }
 }

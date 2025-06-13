@@ -14,6 +14,8 @@ import kotlinx.coroutines.tasks.await
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import kotlin.text.get
+import com.example.projektweterynarzapp.data.models.VisitType
+
 
 /**
  * AuthRepository odpowiada za:
@@ -386,6 +388,43 @@ class AuthRepository {
                 e.printStackTrace()
                 emptyList()
             }
+        }
+    }
+
+    //VISIT TYPES
+    /**
+     * Pobiera wszystkie typy wizyt (kolekcja "visitTypes")
+     */
+    suspend fun getVisitTypes(): List<VisitType> {
+        return try {
+            val snap = db.collection("visitTypes")
+                .get()
+                .await()
+            snap.documents.mapNotNull { doc ->
+                doc.toObject(VisitType::class.java)
+                    ?.copy(id = doc.id)
+            }
+        } catch (e: Exception) {
+            Log.e("AuthRepository", "getVisitTypes failed", e)
+            emptyList()
+        }
+    }
+
+    /**
+     * Dodaje nowy typ wizyty
+     */
+    suspend fun addVisitType(name: String, duration: Int): Boolean {
+        return try {
+            db.collection("visitTypes")
+                .add(mapOf(
+                    "name" to name,
+                    "duration" to duration
+                ))
+                .await()
+            true
+        } catch (e: Exception) {
+            Log.e("AuthRepository", "addVisitType failed", e)
+            false
         }
     }
 

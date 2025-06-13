@@ -31,6 +31,7 @@ import java.time.format.DateTimeFormatter
 import java.time.LocalTime
 import java.time.LocalDate
 import com.example.projektweterynarzapp.data.models.Branch
+import com.example.projektweterynarzapp.data.models.VisitType
 
 
 /**
@@ -57,20 +58,16 @@ fun BookingDetailsScreen(
 
     // --- Formularz state lifted ---
     var selectedPet by remember { mutableStateOf<Pet?>(null) }
-    var selectedVisitType by remember { mutableStateOf<String?>(null) }
+    var selectedVisitType by remember { mutableStateOf<VisitType?>(null) }
     var selectedDoctor by remember { mutableStateOf<User?>(null) }
 
-    val visitTypes = listOf(
-        "Kontrola (20 min)",
-        "Szczepienie (40 min)",
-        "Zabieg (120 min)"
-    )
-    // Mapa typ->czas trwania
-    val visitTypeDurations = mapOf(
-        "Kontrola (20 min)" to 20,
-        "Szczepienie (40 min)" to 40,
-        "Zabieg (120 min)" to 120
-    )
+    // --- DYNAMICZNE TYPY WIZYT ---
+    var visitTypes by remember { mutableStateOf<List<VisitType>>(emptyList()) }  // [CHANGE]
+    var isLoadingTypes by remember { mutableStateOf(true) }                       // [CHANGE]
+    LaunchedEffect(Unit) {                                                       // [CHANGE]
+        visitTypes = authRepo.getVisitTypes()                                    // [CHANGE]
+        isLoadingTypes = false                                                   // [CHANGE]
+    }
 
     // --- Ładowanie danych ---
     var petList by remember { mutableStateOf<List<Pet>>(emptyList()) }
@@ -111,9 +108,7 @@ fun BookingDetailsScreen(
     }
 
     // --- Obliczanie długości wizyty i desiredSlots ---
-    val visitDuration = remember(selectedVisitType) {
-        visitTypeDurations[selectedVisitType] ?: 20
-    }
+    val visitDuration = selectedVisitType?.duration ?: 20
     val desiredSlots = remember(hour, visitDuration) {
         val startIdx = timeSlots.indexOf(hour).takeIf { it >= 0 } ?: return@remember emptyList<String>()
         (0 until (visitDuration / 20)).mapNotNull { i ->
@@ -212,11 +207,13 @@ fun BookingDetailsScreen(
             BookingDetailsForm(
                 petList = petList,
                 isLoadingPets = isLoadingPets,
+                visitTypes = visitTypes,                            // [CHANGE]
+                isLoadingTypes = isLoadingTypes,                    // [CHANGE]
                 doctorList        = availableDoctors,
                 isLoadingDoctors = isLoadingDoctors,
                 // w pliku BookingDetailsScreen.kt, wewnątrz onConfirm:
 
-                onConfirm = { chosenPet, visitType, chosenDoctor ->
+                onConfirm = { chosenPet, vType, chosenDoctor ->
                     // 1) Wrzucamy całość do korutyny
                     coroutineScope.launch {
                         // 2) Najpierw zapis
@@ -227,7 +224,7 @@ fun BookingDetailsScreen(
                             petId      = chosenPet?.id.orEmpty(),
                             petName    = chosenPet?.name.orEmpty(),
                             petSpecies = chosenPet?.species.orEmpty(),
-                            visitType  = visitType,
+                            visitType  = vType.name,
                             doctorId   = chosenDoctor?.uid.orEmpty(),
                             doctorName = "${chosenDoctor?.firstName} ${chosenDoctor?.lastName}".trim()
                         )
@@ -237,7 +234,7 @@ fun BookingDetailsScreen(
                             if (ok) {
                                 Toast.makeText(context,
                                     "Potwierdzono wizytę:\nZwierzak: ${chosenPet?.name}\n" +
-                                            "Rodzaj: $visitType\nLekarz: ${chosenDoctor?.firstName} ${chosenDoctor?.lastName}\n" +
+                                            "Rodzaj: $vType\nLekarz: ${chosenDoctor?.firstName} ${chosenDoctor?.lastName}\n" +
                                             "Data: $date $hour\nLokal: $location",
                                     Toast.LENGTH_LONG
                                 ).show()
@@ -267,16 +264,18 @@ fun BookingDetailsScreen(
 fun BookingDetailsForm(
     petList: List<Pet>,
     isLoadingPets: Boolean,
+    visitTypes: List<VisitType>,                // [CHANGE]
+    isLoadingTypes: Boolean,                    // [CHANGE]
     doctorList: List<User>,
     isLoadingDoctors: Boolean,
-    onConfirm: (selectedPet: Pet?, visitType: String, doctor: User?) -> Unit
+    onConfirm: (Pet?, VisitType, User?) -> Unit
 ) {
     var expandedPet by remember { mutableStateOf(false) }
     var selectedPet by remember { mutableStateOf<Pet?>(null) }
 
-    var expandedVisitType by remember { mutableStateOf(false) }
-    val visitTypes = listOf("Kontrola (20 min)", "Szczepienie (40 min)", "Zabieg (120 min)")
-    var selectedVisitType by remember { mutableStateOf<String?>(null) }
+
+    var expandedType by remember { mutableStateOf(false) }
+    var selectedType by remember { mutableStateOf<VisitType?>(null) }  // [CHANGE]
 
     var expandedDoctor by remember { mutableStateOf(false) }
     var selectedDoctor by remember { mutableStateOf<User?>(null) }
@@ -304,9 +303,9 @@ fun BookingDetailsForm(
                     onValueChange = {},
                     placeholder = {
                         when {
-                            isLoadingPets       -> Text("Ładowanie…")
-                            petList.isEmpty()   -> Text("Brak dodanych zwierząt")
-                            else                -> Text("Wybierz zwierzaka")
+                            isLoadingPets -> Text("Ładowanie…")
+                            petList.isEmpty() -> Text("Brak dodanych zwierząt")
+                            else -> Text("Wybierz zwierzaka")
                         }
                     },
                     readOnly = true,
@@ -355,13 +354,13 @@ fun BookingDetailsForm(
             Spacer(modifier = Modifier.height(4.dp))
             Box(modifier = Modifier.fillMaxWidth()) {
                 OutlinedTextField(
-                    value = selectedVisitType ?: "",
+                    value = selectedType?.let { "${it.name} (${it.duration} min)" }.orEmpty(),
                     onValueChange = {},
                     placeholder = { Text("Wybierz rodzaj wizyty") },
                     readOnly = true,
                     trailingIcon = {
                         Icon(
-                            imageVector = if (expandedVisitType) Icons.Filled.ArrowDropUp else Icons.Filled.ArrowDropDown,
+                            imageVector = if (expandedType) Icons.Filled.ArrowDropUp else Icons.Filled.ArrowDropDown,
                             contentDescription = null
                         )
                     },
@@ -370,36 +369,36 @@ fun BookingDetailsForm(
                 Spacer(
                     Modifier
                         .matchParentSize()
-                        .clickable { expandedVisitType = true }
+                        .clickable { if (visitTypes.isNotEmpty()) expandedType = true }
                 )
                 DropdownMenu(
-                    expanded = expandedVisitType,
-                    onDismissRequest = { expandedVisitType = false },
+                    expanded = expandedType,
+                    onDismissRequest = { expandedType = false },
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     DropdownMenuItem(
                         text = { Text("Anuluj") },
                         onClick = {
-                            selectedVisitType = null
-                            expandedVisitType = false
+                            selectedType = null
+                            expandedType = false
                         }
                     )
                     Divider()
                     visitTypes.forEach { type ->
                         DropdownMenuItem(
-                            text = { Text(type) },
+                            text = { Text("${type.name} (${type.duration} min)") },
                             onClick = {
-                                selectedVisitType = type
-                                expandedVisitType = false
+                                selectedType = type
+                                expandedType = false
                             }
                         )
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-            // ---- Wybierz lekarza ----
+                // ---- Wybierz lekarza ----
             Text(text = "Wybierz lekarza", style = MaterialTheme.typography.bodyLarge)
             Spacer(modifier = Modifier.height(4.dp))
             Box(modifier = Modifier.fillMaxWidth()) {
@@ -410,9 +409,9 @@ fun BookingDetailsForm(
                     onValueChange = {},
                     placeholder = {
                         when {
-                            isLoadingDoctors     -> Text("Ładowanie…")
+                            isLoadingDoctors -> Text("Ładowanie…")
                             doctorList.isEmpty() -> Text("Brak dostępnych lekarzy")
-                            else                 -> Text("Wybierz lekarza")
+                            else -> Text("Wybierz lekarza")
                         }
                     },
                     readOnly = true,
@@ -461,15 +460,16 @@ fun BookingDetailsForm(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            val isFormValid = selectedPet != null && selectedVisitType != null && selectedDoctor != null
+            val isFormValid =
+                selectedPet != null && selectedType != null && selectedDoctor != null
 
             Button(
                 onClick = {
                     if (isFormValid) {
-                        onConfirm(selectedPet, selectedVisitType!!, selectedDoctor!!)
+                        onConfirm(selectedPet, selectedType!!, selectedDoctor!!)
                     }
                 },
-                enabled = isFormValid, // ← tylko jeśli wszystko uzupełnione
+                enabled = isFormValid,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp)

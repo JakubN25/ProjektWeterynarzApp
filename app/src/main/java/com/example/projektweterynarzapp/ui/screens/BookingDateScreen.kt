@@ -69,7 +69,7 @@ fun BookingDateScreen(
     // --- Stan aplikacji ---
     var doctorSchedules by remember { mutableStateOf<List<DoctorSchedule>>(emptyList()) }
     var selectedDate by remember { mutableStateOf<LocalDate?>(null) }
-    var occupiedSlots by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var occupiedSlotsByDoctor by remember { mutableStateOf<Map<String, Set<String>>>(emptyMap()) }
 
     val timeFormatter = DateTimeFormatter.ofPattern("HH:mm")
     val timeSlots by remember {
@@ -88,14 +88,14 @@ fun BookingDateScreen(
 
     // --- Gdy zmienia się data lub harmonogramy, pobieramy bookingi i budujemy occupiedSlots ---
     LaunchedEffect(selectedDate, doctorSchedules) {
-        val dateKey = selectedDate?.format(DateTimeFormatter.ISO_DATE)
-            ?: return@LaunchedEffect
+        val dateKey = selectedDate?.format(DateTimeFormatter.ISO_DATE) ?: return@LaunchedEffect
+        val db = FirebaseFirestore.getInstance()
 
-        val taken = mutableSetOf<String>()
+        val map = mutableMapOf<String, MutableSet<String>>()
         doctorSchedules.forEach { ds ->
+            val taken = mutableSetOf<String>()
             try {
-                val snap = FirebaseFirestore.getInstance()
-                    .collection("users")
+                val snap = db.collection("users")
                     .document(ds.doctorId)
                     .collection("bookings")
                     .whereEqualTo("date", dateKey)
@@ -104,8 +104,7 @@ fun BookingDateScreen(
 
                 snap.documents.mapNotNull { it.toObject(Booking::class.java) }
                     .forEach { b ->
-                        val startIndex = timeSlots.indexOf(b.hour).takeIf { it >= 0 }
-                            ?: return@forEach
+                        val startIndex = timeSlots.indexOf(b.hour).takeIf { it >= 0 } ?: return@forEach
                         val span = (b.duration / 20) - 1
                         for (i in 0..span.coerceAtLeast(0)) {
                             timeSlots.getOrNull(startIndex + i)?.let { taken.add(it) }
@@ -114,8 +113,9 @@ fun BookingDateScreen(
             } catch (e: Exception) {
                 Log.e("BookingDateScreen", "Błąd pobierania bookingów: ${e.localizedMessage}")
             }
+            map[ds.doctorId] = taken
         }
-        occupiedSlots = taken
+        occupiedSlotsByDoctor = map
     }
 
     Scaffold(
@@ -199,8 +199,21 @@ fun BookingDateScreen(
                             } ?: false
                         }
 
-                        val isOccupied = occupiedSlots.contains(slot)
-                        val enabled = !isPastTime && fitsSchedule && !isOccupied
+                        // Zwraca true, jeśli istnieje lekarz, który
+                        // 1) pracuje w tym slotcie i
+                        // 2) nie ma go w occupiedSlotsByDoctor
+                        val isFreeForSomeDoctor = doctorSchedules.any { ds ->
+                            // 1) Lekarz pracuje o tej godzinie?
+                            ds.schedules[dayName]?.let { tr ->
+                                val start = LocalTime.parse(tr.start, timeFormatter)
+                                val end   = LocalTime.parse(tr.end,   timeFormatter)
+                                !slotTime.isBefore(start) && slotTime.isBefore(end)
+                            } ?: false
+                                    // 2) i nie jest zajęty?
+                                    && !(occupiedSlotsByDoctor[ds.doctorId]?.contains(slot) == true)
+                        }
+
+                        val enabled = !isPastTime && isFreeForSomeDoctor
 
                         OutlinedButton(
                             onClick = {

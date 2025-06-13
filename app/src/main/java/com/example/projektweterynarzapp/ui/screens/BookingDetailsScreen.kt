@@ -24,6 +24,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.example.projektweterynarzapp.data.models.DoctorSchedule
+import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.tasks.await
 import java.time.format.DateTimeFormatter
 import java.time.LocalTime
 import java.time.LocalDate
@@ -59,6 +61,7 @@ fun BookingDetailsScreen(
 
     var doctorSchedules by remember { mutableStateOf<List<DoctorSchedule>>(emptyList()) }
     var isLoadingSchedules by remember { mutableStateOf(true) }
+    var occupiedDoctorIds by remember { mutableStateOf<Set<String>>(emptySet()) }
 
     // Pobrane raz
     LaunchedEffect(Unit) {
@@ -90,16 +93,45 @@ fun BookingDetailsScreen(
         .dayOfWeek
         .name
 
-    val availableDoctors = remember(doctorList, schedulesMap) {
+    // 2) Po załadowaniu listy lekarzy i harmonogramów, fetchujemy bookingi dla danego date+hour
+    LaunchedEffect(doctorList, date, hour) {
+        val db = FirebaseFirestore.getInstance()
+        val taken = mutableSetOf<String>()
+        doctorList.forEach { doc ->
+            try {
+                // szukamy rezerwacji dla tego lekarza w tym dniu i tej godzinie
+                val snap = db.collection("users")
+                    .document(doc.uid)
+                    .collection("bookings")
+                    .whereEqualTo("date", date)
+                    .whereEqualTo("hour", hour)
+                    .get()
+                    .await()
+                if (snap.documents.isNotEmpty()) {
+                    taken.add(doc.uid)
+                }
+            } catch (e: Exception) {
+                Log.e("BookingDetails", "fetch occupied doctors: ${e.localizedMessage}")
+            }
+        }
+        occupiedDoctorIds = taken
+    }
+
+    // 3) Teraz filtrujemy dostępnych lekarzy:
+    val availableDoctors = remember(doctorList, schedulesMap, occupiedDoctorIds) {
         doctorList.filter { doc ->
+            // a) pasuje do godzin pracy?
             schedulesMap[doc.uid]?.schedules?.get(dayName)?.let { tr ->
                 val start = LocalTime.parse(tr.start, timeFormatter)
                 val end   = LocalTime.parse(tr.end,   timeFormatter)
-                // dopuszczamy slot >= start i < end
                 !slotTime.isBefore(start) && slotTime.isBefore(end)
             } ?: false
+                    // b) i nie ma już rezerwacji w tym slocie
+                    && !occupiedDoctorIds.contains(doc.uid)
         }
     }
+
+
 
     Scaffold(
         topBar = {

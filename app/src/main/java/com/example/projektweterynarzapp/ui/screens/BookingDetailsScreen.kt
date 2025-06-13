@@ -17,6 +17,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.example.projektweterynarzapp.data.AuthRepository
+import com.example.projektweterynarzapp.data.models.Booking
 import com.example.projektweterynarzapp.data.models.Pet
 import com.example.projektweterynarzapp.data.models.User
 import com.example.projektweterynarzapp.ui.navigation.Screen
@@ -42,28 +43,40 @@ import java.time.LocalDate
 @Composable
 fun BookingDetailsScreen(
     location: String,
-    date: String,   // oczekujemy formatu yyyy-MM-dd
-    hour: String,   // np. "08:00"
+    date: String,
+    hour: String,
     navController: NavHostController
 ) {
     val authRepo = remember { AuthRepository() }
     val scheduleRepo = remember { AuthRepository.ScheduleRepository() }
-
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
 
-    // Lista zwierzaków z Firestore
+    // --- Formularz state lifted ---
+    var selectedPet by remember { mutableStateOf<Pet?>(null) }
+    var selectedVisitType by remember { mutableStateOf<String?>(null) }
+    var selectedDoctor by remember { mutableStateOf<User?>(null) }
+
+    val visitTypes = listOf(
+        "Kontrola (20 min)",
+        "Szczepienie (40 min)",
+        "Zabieg (120 min)"
+    )
+    // Mapa typ->czas trwania
+    val visitTypeDurations = mapOf(
+        "Kontrola (20 min)" to 20,
+        "Szczepienie (40 min)" to 40,
+        "Zabieg (120 min)" to 120
+    )
+
+    // --- Ładowanie danych ---
     var petList by remember { mutableStateOf<List<Pet>>(emptyList()) }
     var isLoadingPets by remember { mutableStateOf(true) }
-
     var doctorList by remember { mutableStateOf<List<User>>(emptyList()) }
     var isLoadingDoctors by remember { mutableStateOf(true) }
-
     var doctorSchedules by remember { mutableStateOf<List<DoctorSchedule>>(emptyList()) }
     var isLoadingSchedules by remember { mutableStateOf(true) }
-    var occupiedDoctorIds by remember { mutableStateOf<Set<String>>(emptySet()) }
 
-    // Pobrane raz
     LaunchedEffect(Unit) {
         // pets
         isLoadingPets = true
@@ -75,63 +88,84 @@ fun BookingDetailsScreen(
         doctorList = authRepo.getDoctors()
         isLoadingDoctors = false
 
+        // schedules
         isLoadingSchedules = true
         doctorSchedules = scheduleRepo.getAllDoctorsSchedules()
         isLoadingSchedules = false
-        }
-
-    // 2) Zmapuj grafiki po UID
-    val schedulesMap = remember(doctorSchedules) {
-        doctorSchedules.associateBy { it.doctorId }
     }
 
-    // 3) Oblicz listę dostępnych lekarzy dla tego slotu:
+    // --- Generowanie slotów 20-minutowych ---
     val timeFormatter = DateTimeFormatter.ofPattern("HH:mm")
-    val slotTime = LocalTime.parse(hour, timeFormatter)
-    val dayName = LocalDate
-        .parse(date, DateTimeFormatter.ofPattern("yyyy-MM-dd"))
-        .dayOfWeek
-        .name
+    val timeSlots by remember {
+        mutableStateOf(
+            generateSequence(LocalTime.of(8, 0)) { it.plusMinutes(20) }
+                .takeWhile { it <= LocalTime.of(20, 0) }
+                .map { it.format(timeFormatter) }
+                .toList()
+        )
+    }
 
-    // 2) Po załadowaniu listy lekarzy i harmonogramów, fetchujemy bookingi dla danego date+hour
-    LaunchedEffect(doctorList, date, hour) {
+    // --- Obliczanie długości wizyty i desiredSlots ---
+    val visitDuration = remember(selectedVisitType) {
+        visitTypeDurations[selectedVisitType] ?: 20
+    }
+    val desiredSlots = remember(hour, visitDuration) {
+        val startIdx = timeSlots.indexOf(hour).takeIf { it >= 0 } ?: return@remember emptyList<String>()
+        (0 until (visitDuration / 20)).mapNotNull { i ->
+            timeSlots.getOrNull(startIdx + i)
+        }
+    }
+
+    // --- Budowanie mapy doctorId -> zajęte sloty ---
+    var occupiedSlotsByDoctor by remember { mutableStateOf<Map<String, Set<String>>>(emptyMap()) }
+    LaunchedEffect(doctorList, date) {
         val db = FirebaseFirestore.getInstance()
-        val taken = mutableSetOf<String>()
+        val map = mutableMapOf<String, MutableSet<String>>()
         doctorList.forEach { doc ->
+            val taken = mutableSetOf<String>()
             try {
-                // szukamy rezerwacji dla tego lekarza w tym dniu i tej godzinie
                 val snap = db.collection("users")
                     .document(doc.uid)
                     .collection("bookings")
                     .whereEqualTo("date", date)
-                    .whereEqualTo("hour", hour)
                     .get()
                     .await()
-                if (snap.documents.isNotEmpty()) {
-                    taken.add(doc.uid)
-                }
+                snap.documents.mapNotNull { it.toObject(Booking::class.java) }
+                    .forEach { b ->
+                        val idx = timeSlots.indexOf(b.hour).takeIf { it >= 0 } ?: return@forEach
+                        val span = (b.duration / 20) - 1
+                        for (i in 0..span.coerceAtLeast(0)) {
+                            timeSlots.getOrNull(idx + i)?.let(taken::add)
+                        }
+                    }
             } catch (e: Exception) {
-                Log.e("BookingDetails", "fetch occupied doctors: ${e.localizedMessage}")
+                Log.e("BookingDetails", "fetch occupied: ${e.localizedMessage}")
             }
+            map[doc.uid] = taken
         }
-        occupiedDoctorIds = taken
+        occupiedSlotsByDoctor = map
     }
 
-    // 3) Teraz filtrujemy dostępnych lekarzy:
-    val availableDoctors = remember(doctorList, schedulesMap, occupiedDoctorIds) {
+    // --- Filtrowanie dostępnych lekarzy ---
+    val dayName = LocalDate.parse(date, DateTimeFormatter.ISO_DATE).dayOfWeek.name
+    val schedulesMap = remember(doctorSchedules) {
+        doctorSchedules.associateBy { it.doctorId }
+    }
+    val availableDoctors = remember(doctorList, schedulesMap, occupiedSlotsByDoctor, desiredSlots) {
         doctorList.filter { doc ->
-            // a) pasuje do godzin pracy?
-            schedulesMap[doc.uid]?.schedules?.get(dayName)?.let { tr ->
-                val start = LocalTime.parse(tr.start, timeFormatter)
-                val end   = LocalTime.parse(tr.end,   timeFormatter)
-                !slotTime.isBefore(start) && slotTime.isBefore(end)
-            } ?: false
-                    // b) i nie ma już rezerwacji w tym slocie
-                    && !occupiedDoctorIds.contains(doc.uid)
+            val tr = schedulesMap[doc.uid]?.schedules?.get(dayName) ?: return@filter false
+            val start = LocalTime.parse(tr.start, timeFormatter)
+            val end = LocalTime.parse(tr.end, timeFormatter)
+            // 1) wszystkie desiredSlots mieszczą się w grafiku
+            val fitsSchedule = desiredSlots.all { slot ->
+                val t = LocalTime.parse(slot, timeFormatter)
+                !t.isBefore(start) && t.plusMinutes(20).minusMinutes(1).isBefore(end)
+            }
+            // 2) żaden z desiredSlots nie jest zajęty
+            val free = desiredSlots.none { occupiedSlotsByDoctor[doc.uid]?.contains(it) == true }
+            fitsSchedule && free
         }
     }
-
-
 
     Scaffold(
         topBar = {

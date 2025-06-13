@@ -225,6 +225,7 @@ fun BookingDetailsScreen(
                             petName    = chosenPet?.name.orEmpty(),
                             petSpecies = chosenPet?.species.orEmpty(),
                             visitType  = vType.name,
+                            visitDuration = vType.duration, // <-- DODAJ TO!
                             doctorId   = chosenDoctor?.uid.orEmpty(),
                             doctorName = "${chosenDoctor?.firstName} ${chosenDoctor?.lastName}".trim()
                         )

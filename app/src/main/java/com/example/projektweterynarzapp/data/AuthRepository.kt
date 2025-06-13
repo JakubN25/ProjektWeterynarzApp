@@ -270,31 +270,19 @@ class AuthRepository {
         petName: String,
         petSpecies: String,
         visitType: String,
+        visitDuration: Int, // <-- DODAJ TO
         doctorId: String,
         doctorName: String
     ): Boolean {
         val clientUid = auth.currentUser?.uid ?: return false
 
-        // ======= parsowanie duration z nawiasu "(XX min)" =======
-        // szukamy grupy cyfr przed " min"
-        val regex = Regex("""\((\d+)\s*min\)""")
-        val duration: Int = regex.find(visitType)
-            ?.groupValues
-            ?.get(1)
-            ?.toIntOrNull()
-            ?: run {
-                Log.w("AuthRepo", "Nie udało się sparsować czasu z '$visitType', używam 20")
-                20
-            }
+        val duration = visitDuration // <-- Używaj tego
 
-        // ======= wyliczenie endHour jak dotąd, ale już z prawidłowym duration =======
         val timeFormatter = DateTimeFormatter.ofPattern("HH:mm")
         val startTime = LocalTime.parse(hour, timeFormatter)
-        // tu +duration (minut), a potem -1 minuty jeśli chcesz ostatnią minutę
         val endTime = startTime.plusMinutes(duration.toLong()).minusMinutes(1)
         val endHour = endTime.format(timeFormatter)
 
-        // 3) Tworzymy obiekt Booking z nowymi polami
         val booking = Booking(
             userId     = clientUid,
             location   = location,

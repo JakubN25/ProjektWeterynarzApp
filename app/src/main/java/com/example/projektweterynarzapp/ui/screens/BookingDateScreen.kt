@@ -22,6 +22,7 @@ import com.example.projektweterynarzapp.ui.navigation.Screen
 import com.example.projektweterynarzapp.data.AuthRepository
 import com.example.projektweterynarzapp.data.models.DoctorSchedule
 import com.example.projektweterynarzapp.data.models.Booking
+import com.example.projektweterynarzapp.data.models.User
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
 import java.time.*
@@ -31,6 +32,7 @@ import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.SelectableDates
+import com.example.projektweterynarzapp.data.models.Branch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,8 +40,10 @@ fun BookingDateScreen(
     location: String,
     navController: NavHostController
 ) {
+    val authRepo = remember { AuthRepository() }
     val scheduleRepo = remember { AuthRepository.ScheduleRepository() }
 
+    val branchId = Branch.fromName(location)?.id
     // --- Stan DatePicker Dialog ---
     var showDatePicker by remember { mutableStateOf(false) }
 
@@ -67,6 +71,7 @@ fun BookingDateScreen(
     )
 
     // --- Stan aplikacji ---
+    var doctorList by remember { mutableStateOf<List<User>>(emptyList()) }
     var doctorSchedules by remember { mutableStateOf<List<DoctorSchedule>>(emptyList()) }
     var selectedDate by remember { mutableStateOf<LocalDate?>(null) }
     var occupiedSlotsByDoctor by remember { mutableStateOf<Map<String, Set<String>>>(emptyMap()) }
@@ -82,9 +87,18 @@ fun BookingDateScreen(
     }
 
     // --- Ładujemy harmonogramy lekarzy raz ---
-    LaunchedEffect(Unit) {
-        doctorSchedules = scheduleRepo.getAllDoctorsSchedules()
+    LaunchedEffect(location) {
+        // pobieramy lekarzy tylko z naszego branchu
+        branchId?.let {
+            doctorList = authRepo.getDoctorsByBranch(it)
+        }
+        // pobieramy wszystkie harmonogramy, a następnie filtrujemy po id lekarzy
+        val allSchedules = scheduleRepo.getAllDoctorsSchedules()
+        doctorSchedules = allSchedules.filter { ds ->
+            doctorList.any { it.uid == ds.doctorId }
+        }
     }
+
 
     // --- Gdy zmienia się data lub harmonogramy, pobieramy bookingi i budujemy occupiedSlots ---
     LaunchedEffect(selectedDate, doctorSchedules) {

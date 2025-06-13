@@ -30,6 +30,7 @@ import kotlinx.coroutines.tasks.await
 import java.time.format.DateTimeFormatter
 import java.time.LocalTime
 import java.time.LocalDate
+import com.example.projektweterynarzapp.data.models.Branch
 
 
 /**
@@ -51,6 +52,8 @@ fun BookingDetailsScreen(
     val scheduleRepo = remember { AuthRepository.ScheduleRepository() }
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
+
+    val branchId = Branch.fromName(location)?.id
 
     // --- Formularz state lifted ---
     var selectedPet by remember { mutableStateOf<Pet?>(null) }
@@ -77,23 +80,25 @@ fun BookingDetailsScreen(
     var doctorSchedules by remember { mutableStateOf<List<DoctorSchedule>>(emptyList()) }
     var isLoadingSchedules by remember { mutableStateOf(true) }
 
-    LaunchedEffect(Unit) {
-        // pets
+    LaunchedEffect(location, date) {
+        // 2.1 Zwierzęta
         isLoadingPets = true
         petList = authRepo.getPets()
         isLoadingPets = false
 
-        // doctors
+        // 2.2 Lekarze z branchu
         isLoadingDoctors = true
-        doctorList = authRepo.getDoctors()
+        doctorList = branchId?.let { authRepo.getDoctorsByBranch(it) } ?: emptyList()
         isLoadingDoctors = false
 
-        // schedules
+        // 2.3 Harmonogramy tych lekarzy
         isLoadingSchedules = true
-        doctorSchedules = scheduleRepo.getAllDoctorsSchedules()
+        val allSchedules = scheduleRepo.getAllDoctorsSchedules()
+        doctorSchedules = allSchedules.filter { ds ->
+            doctorList.any { it.uid == ds.doctorId }
+        }
         isLoadingSchedules = false
     }
-
     // --- Generowanie slotów 20-minutowych ---
     val timeFormatter = DateTimeFormatter.ofPattern("HH:mm")
     val timeSlots by remember {
@@ -148,20 +153,22 @@ fun BookingDetailsScreen(
 
     // --- Filtrowanie dostępnych lekarzy ---
     val dayName = LocalDate.parse(date, DateTimeFormatter.ISO_DATE).dayOfWeek.name
-    val schedulesMap = remember(doctorSchedules) {
-        doctorSchedules.associateBy { it.doctorId }
-    }
-    val availableDoctors = remember(doctorList, schedulesMap, occupiedSlotsByDoctor, desiredSlots) {
+    val availableDoctors = remember(doctorList, doctorSchedules, occupiedSlotsByDoctor, desiredSlots) {
         doctorList.filter { doc ->
-            val tr = schedulesMap[doc.uid]?.schedules?.get(dayName) ?: return@filter false
+            // znajdujemy harmonogram odpowiadający doc.uid
+            val tr = doctorSchedules.firstOrNull { it.doctorId == doc.uid }
+                ?.schedules?.get(dayName)
+                ?: return@filter false
+
             val start = LocalTime.parse(tr.start, timeFormatter)
-            val end = LocalTime.parse(tr.end, timeFormatter)
-            // 1) wszystkie desiredSlots mieszczą się w grafiku
+            val end   = LocalTime.parse(tr.end,   timeFormatter)
+
+            // 1) Sprawdzamy, czy wszystkie desiredSlots mieszczą się w grafiku
             val fitsSchedule = desiredSlots.all { slot ->
                 val t = LocalTime.parse(slot, timeFormatter)
                 !t.isBefore(start) && t.plusMinutes(20).minusMinutes(1).isBefore(end)
             }
-            // 2) żaden z desiredSlots nie jest zajęty
+            // 2) Sprawdzamy, czy żaden slot nie jest już zajęty
             val free = desiredSlots.none { occupiedSlotsByDoctor[doc.uid]?.contains(it) == true }
             fitsSchedule && free
         }

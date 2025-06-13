@@ -2,6 +2,7 @@ package com.example.projektweterynarzapp.data
 
 import android.util.Log
 import com.example.projektweterynarzapp.data.models.Booking
+import com.example.projektweterynarzapp.data.models.Branch
 import com.example.projektweterynarzapp.data.models.DoctorSchedule
 import com.example.projektweterynarzapp.data.models.Pet
 import com.example.projektweterynarzapp.data.models.User
@@ -130,6 +131,19 @@ class AuthRepository {
             false
         }
     }
+    suspend fun updateDoctorBranch(doctorId: String, branch: Branch): Boolean {
+        return try {
+            db.collection("users")
+                .document(doctorId)
+                .update("branch", branch.id)  // branch.id to teraz String
+                .await()
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
 
     // ------------------------------------
     // CZĘŚĆ B: PETS – CRUD w kolekcji "users/{uid}/pets"
@@ -233,6 +247,15 @@ class AuthRepository {
             emptyList()
         }
     }
+
+    suspend fun getDoctorsByBranch(branchId: String): List<User> {
+        return db.collection("users")
+            .whereEqualTo("role", "doctor")
+            .whereEqualTo("branch", branchId)   // teraz String
+            .get().await()
+            .documents.mapNotNull { it.toObject(User::class.java) }
+    }
+
 
     /**
     +     * Zapisuje nową wizytę w subkolekcji "bookings" pod bieżącym użytkownikiem.

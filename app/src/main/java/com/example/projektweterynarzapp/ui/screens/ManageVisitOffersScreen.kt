@@ -16,6 +16,8 @@ import androidx.compose.ui.unit.dp
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Delete
 
 /**
  * Data class reprezentująca ofertę wizyty
@@ -37,6 +39,10 @@ fun ManageVisitOffersScreen(
 
     var offers by remember { mutableStateOf<List<VisitOffer>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
+
+    var editOffer by remember { mutableStateOf<VisitOffer?>(null) }
+    var editName by remember { mutableStateOf("") }
+    var editDuration by remember { mutableStateOf("") }
 
     // pola formularza
     var newName by remember { mutableStateOf("") }
@@ -91,7 +97,10 @@ fun ManageVisitOffersScreen(
                     CircularProgressIndicator()
                 }
             } else {
-                LazyColumn {
+                LazyColumn (
+                    modifier = Modifier.weight(1f)
+                )
+                {
                     items(offers) { offer ->
                         Row(
                             Modifier
@@ -101,6 +110,32 @@ fun ManageVisitOffersScreen(
                         ) {
                             Text(offer.name, modifier = Modifier.weight(1f))
                             Text(offer.duration.toString(), modifier = Modifier.weight(1f))
+                            IconButton(onClick = {
+                                // Rozpocznij edycję
+                                editOffer = offer
+                                editName = offer.name
+                                editDuration = offer.duration.toString()
+                            }) {
+                                Icon(Icons.Default.Edit, contentDescription = "Edytuj")
+                            }
+                            IconButton(onClick = {
+                                coroutineScope.launch {
+                                    try {
+                                        db.collection("visitTypes").document(offer.id).delete().await()
+                                        // odświeżenie listy
+                                        val snapshot = db.collection("visitTypes").get().await()
+                                        offers = snapshot.documents.mapNotNull { doc ->
+                                            val name = doc.getString("name") ?: return@mapNotNull null
+                                            val duration = doc.getLong("duration")?.toInt() ?: return@mapNotNull null
+                                            VisitOffer(id = doc.id, name = name, duration = duration)
+                                        }
+                                    } catch (e: Exception) {
+                                        Log.e("ManageOffers", "Error deleting offer", e)
+                                    }
+                                }
+                            }) {
+                                Icon(Icons.Default.Delete, contentDescription = "Usuń")
+                            }
                         }
                         Divider()
                     }
@@ -157,6 +192,78 @@ fun ManageVisitOffersScreen(
             ) {
                 Text("Dodaj ofertę")
             }
+            if (editOffer != null) {
+                Spacer(Modifier.height(16.dp))
+                Text("Edytuj ofertę", style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.height(8.dp))
+
+                OutlinedTextField(
+                    value = editName,
+                    onValueChange = { editName = it },
+                    label = { Text("Nazwa wizyty") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = editDuration,
+                    onValueChange = { editDuration = it.filter { c -> c.isDigit() } },
+                    label = { Text("Czas trwania (min)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    // usuwamy enabled=false!
+                )
+                Spacer(Modifier.height(8.dp))
+                Row(Modifier.fillMaxWidth()) {
+                    Button(
+                        onClick = {
+                            coroutineScope.launch {
+                                val dur = editDuration.toIntOrNull() ?: return@launch
+                                val data = mapOf(
+                                    "name" to editName,
+                                    "duration" to dur
+                                )
+                                try {
+                                    db.collection("visitTypes").document(editOffer!!.id).update(data).await()
+                                    // odświeżenie listy
+                                    val snapshot = db.collection("visitTypes").get().await()
+                                    offers = snapshot.documents.mapNotNull { doc ->
+                                        val name = doc.getString("name") ?: return@mapNotNull null
+                                        val duration = doc.getLong("duration")?.toInt() ?: return@mapNotNull null
+                                        VisitOffer(id = doc.id, name = name, duration = duration)
+                                    }
+                                    editOffer = null
+                                    editName = ""
+                                    editDuration = ""
+                                } catch (e: Exception) {
+                                    Log.e("ManageOffers", "Error updating offer", e)
+                                }
+                            }
+                        },
+                        enabled = editName.isNotBlank() && editDuration.isNotBlank(),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp)
+                    ) {
+                        Text("Zapisz zmiany")
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    OutlinedButton(
+                        onClick = {
+                            editOffer = null
+                            editName = ""
+                            editDuration = ""
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp)
+                    ) {
+                        Text("Anuluj")
+                    }
+                }
+            }
+
+
         }
     }
 }

@@ -16,7 +16,9 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun AdminScreen(
     onManageSchedules: () -> Unit,
-    onManageOffers: () -> Unit
+    onManageOffers: () -> Unit,
+    onManageUsers: () -> Unit
+
 ) {
     Column(
         modifier = Modifier
@@ -35,6 +37,11 @@ fun AdminScreen(
         Spacer(modifier = Modifier.height(8.dp))
         Button(onClick = onManageOffers) {
             Text("Zarządzaj ofertą wizyt") }
+
+        Spacer(modifier = Modifier.height(8.dp))
+        Button(onClick = onManageUsers) { // nowy przycisk
+            Text("Zarządzaj użytkownikami")
+        }
     }
 }
 

@@ -60,6 +60,7 @@ fun BookingDetailsScreen(
     var selectedPet by remember { mutableStateOf<Pet?>(null) }
     var selectedVisitType by remember { mutableStateOf<VisitType?>(null) }
     var selectedDoctor by remember { mutableStateOf<User?>(null) }
+    var isProfileComplete by remember { mutableStateOf<Boolean?>(null) }
 
     // --- DYNAMICZNE TYPY WIZYT ---
     var visitTypes by remember { mutableStateOf<List<VisitType>>(emptyList()) }  // [CHANGE]
@@ -167,6 +168,55 @@ fun BookingDetailsScreen(
             val free = desiredSlots.none { occupiedSlotsByDoctor[doc.uid]?.contains(it) == true }
             fitsSchedule && free
         }
+    }
+
+    // Sprawdź kompletność profilu
+    LaunchedEffect(Unit) {
+        isProfileComplete = authRepo.isProfileComplete()
+    }
+
+    // Ekran ładowania
+    if (isProfileComplete == null) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator()
+        }
+        return
+    }
+
+    // BLOKADA UMAWIANIA: Profil niekompletny
+    if (isProfileComplete == false) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                "Aby umówić wizytę, proszę uzupełnić wszystkie dane kontaktowe w sekcji \"Mój profil\".",
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.titleMedium
+            )
+            Spacer(Modifier.height(24.dp))
+            // Przycisk do profilu
+            Button(
+                onClick = { navController.navigate("profile_screen") },
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+            ) {
+                Text("Mój profil")
+            }
+            Spacer(Modifier.height(12.dp))
+            // Przycisk wróć
+            OutlinedButton(
+                onClick = { navController.popBackStack() }
+            ) {
+                Text("Wróć")
+            }
+        }
+        return
     }
 
     Scaffold(

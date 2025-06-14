@@ -521,6 +521,15 @@ class AuthRepository {
         }
     }
 
+    suspend fun isProfileComplete(): Boolean {
+        val user = getCurrentUser() ?: return false
+        val profile = getUserProfile(user.uid) ?: return false
+        return profile.firstName.isNotBlank() &&
+                profile.lastName.isNotBlank() &&
+                profile.phone.isNotBlank() &&
+                profile.address.isNotBlank() &&
+                profile.city.isNotBlank()
+    }
 
 
 

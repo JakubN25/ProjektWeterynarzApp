@@ -1,3 +1,4 @@
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -12,6 +13,7 @@ import androidx.compose.ui.unit.dp
 import com.example.projektweterynarzapp.data.AuthRepository
 import com.example.projektweterynarzapp.data.models.User
 import com.example.projektweterynarzapp.data.models.Booking
+import com.example.projektweterynarzapp.data.models.Pet
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 
@@ -25,6 +27,7 @@ fun DoctorVisitHistoryScreen(
     var users by remember { mutableStateOf<List<User>>(emptyList()) }
     var selectedUser by remember { mutableStateOf<User?>(null) }
     var bookings by remember { mutableStateOf<List<Booking>>(emptyList()) }
+    var pets by remember { mutableStateOf<List<Pet>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
 
     // Pobieranie listy użytkowników
@@ -93,6 +96,7 @@ fun DoctorVisitHistoryScreen(
                                 selectedUser = user
                                 coroutineScope.launch {
                                     bookings = repo.getPatientBookings(user.uid)
+                                    pets = repo.getUserPets(user.uid)
                                     loading = false
                                 }
                             }
@@ -113,6 +117,7 @@ fun DoctorVisitHistoryScreen(
                     false
                 }
             }
+            val petMap = pets.associateBy { it.id }
 
             LazyColumn(
                 Modifier
@@ -136,6 +141,9 @@ fun DoctorVisitHistoryScreen(
                             Text("Adres: ${selectedUser?.address}, ${selectedUser?.city}")
                         }
                     }
+                }
+                items(pets) { pet ->
+                    ExpandablePetCard(pet = pet)
                 }
 
                 // 2. HISTORIA WIZYT
@@ -201,4 +209,27 @@ fun DoctorVisitHistoryScreen(
         }
     }
 }
+
+@Composable
+fun ExpandablePetCard(pet: Pet) {
+    var expanded by remember { mutableStateOf(false) }
+    Card(
+        Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+            .clickable { expanded = !expanded }
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            Text("Zwierzak: ${pet.name} (${pet.species})", style = MaterialTheme.typography.titleMedium)
+            if (expanded) {
+                Spacer(Modifier.height(8.dp))
+                Text("• Rasa: ${pet.breed}")
+                Text("• Wiek: ${pet.age}")
+                Text("• Waga: ${pet.weight}")
+                Text("• Płeć: ${pet.sex}")
+            }
+        }
+    }
+}
+
 

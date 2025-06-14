@@ -531,6 +531,23 @@ class AuthRepository {
                 profile.city.isNotBlank()
     }
 
+    // AuthRepository
+    suspend fun getUserPets(userId: String): List<Pet> {
+        return try {
+            val snapshot = db.collection("users")
+                .document(userId)
+                .collection("pets")
+                .get()
+                .await()
+            snapshot.documents.mapNotNull { doc ->
+                val pet = doc.toObject(Pet::class.java)
+                pet?.copy(id = doc.id)
+            }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
 
 
 

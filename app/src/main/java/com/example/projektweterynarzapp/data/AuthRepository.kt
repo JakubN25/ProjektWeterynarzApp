@@ -305,7 +305,7 @@ class AuthRepository {
             visitType  = visitType,
             doctorId   = doctorId,
             doctorName = doctorName,
-            createdAt  = Timestamp.now().toDate().toString()
+            createdAt  = Timestamp.now()
         )
 
         // 4) Zapis w Firestore (tak jak było)
@@ -424,6 +424,94 @@ class AuthRepository {
             false
         }
     }
+
+    // Pobranie wizyt danego doktora (z jego podkolekcji bookings)
+    suspend fun getDoctorBookings(doctorId: String): List<Booking> {
+        return try {
+            val snap = db.collection("users")
+                .document(doctorId)
+                .collection("bookings")
+                .get()
+                .await()
+            snap.documents.mapNotNull { it.toObject(Booking::class.java)?.copy(id = it.id) }
+        } catch (e: Exception) {
+            Log.e("AuthRepository", "getDoctorBookings error", e)
+            emptyList()
+        }
+    }
+
+    suspend fun deleteDoctorBooking(doctorId: String, bookingId: String): Boolean {
+        return try {
+            db.collection("users")
+                .document(doctorId)
+                .collection("bookings")
+                .document(bookingId)
+                .delete()
+                .await()
+            true
+        } catch (e: Exception) {
+            Log.e("AuthRepository", "deleteDoctorBooking error", e)
+            false
+        }
+    }
+
+
+
+    // Pobranie wszystkich userów z rolą "user"
+    suspend fun getAllPatients(): List<User> {
+        return try {
+            val snap = db.collection("users")
+                .whereEqualTo("role", "user")
+                .get()
+                .await()
+            snap.documents.mapNotNull { it.toObject(User::class.java) }
+        } catch (e: Exception) {
+            Log.e("AuthRepository", "getAllPatients error", e)
+            emptyList()
+        }
+    }
+
+    suspend fun getAllUsers(): List<User> {
+        return try {
+            val snap = db.collection("users").get().await()
+            snap.documents.mapNotNull { it.toObject(User::class.java) }
+        } catch (e: Exception) {
+            Log.e("AuthRepository", "getAllUsers error", e)
+            emptyList()
+        }
+    }
+
+
+    // Pobranie wizyt danego usera
+    suspend fun getPatientBookings(userId: String): List<Booking> {
+        return try {
+            val snap = db.collection("users")
+                .document(userId)
+                .collection("bookings")
+                .get()
+                .await()
+            snap.documents.mapNotNull { it.toObject(Booking::class.java)?.copy(id = it.id) }
+        } catch (e: Exception) {
+            Log.e("AuthRepository", "getPatientBookings error", e)
+            emptyList()
+        }
+    }
+    suspend fun deleteUserBooking(userId: String, bookingId: String): Boolean {
+        return try {
+            db.collection("users")
+                .document(userId)
+                .collection("bookings")
+                .document(bookingId)
+                .delete()
+                .await()
+            true
+        } catch (e: Exception) {
+            Log.e("AuthRepository", "deleteUserBooking error", e)
+            false
+        }
+    }
+
+
 
 
 

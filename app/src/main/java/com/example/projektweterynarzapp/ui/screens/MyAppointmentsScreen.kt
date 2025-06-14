@@ -10,6 +10,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.projektweterynarzapp.data.AuthRepository
 import com.example.projektweterynarzapp.data.models.Booking
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -19,6 +22,16 @@ fun MyAppointmentsScreen() {
 
     var bookings by remember { mutableStateOf<List<Booking>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
+
+    fun reload() {
+        isLoading = true
+        // uruchom jako coroutine
+        CoroutineScope(Dispatchers.Main).launch {
+            bookings = authRepo.getBookings().sortedBy { "${it.date} ${it.hour}" }
+            isLoading = false
+        }
+    }
+    LaunchedEffect(Unit) { reload() }
 
     LaunchedEffect(Unit) {
         isLoading = true

@@ -122,6 +122,12 @@ class MainActivity : ComponentActivity() {
                                         snackbarHostState.showSnackbar("Wylogowano")
                                     }
                                 },
+                                onDoctorPanelSelected = {         // <------ TO DODAJ!
+                                    scope.launch {
+                                        drawerState.close()
+                                        navController.navigate(Screen.DoctorPanel.route)
+                                    }
+                                },
                                 onAppointmentsSelected = {
                                     scope.launch {
                                         drawerState.close()

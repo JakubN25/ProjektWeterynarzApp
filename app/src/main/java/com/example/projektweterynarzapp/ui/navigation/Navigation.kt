@@ -1,5 +1,7 @@
 package com.example.projektweterynarzapp.ui.navigation
 
+import DoctorAppointmentsScreen
+import DoctorVisitHistoryScreen
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -7,6 +9,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.example.projektweterynarzapp.ui.screens.*
+import com.google.firebase.auth.FirebaseAuth
 
 sealed class Screen(val route: String) {
     object Login : Screen("login_screen")
@@ -31,7 +34,12 @@ sealed class Screen(val route: String) {
     object ManageSchedules : Screen("manage_schedules")
     object ManageOffers : Screen("manage_offers")
     object ManageUsers : Screen("manage_users")
+    object DoctorPanel : Screen("doctor_panel")
+    object DoctorAppointments : Screen("doctor_appointments/{doctorId}") {
+        fun createRoute(doctorId: String) = "doctor_appointments/$doctorId"
+    }
 
+    object DoctorVisitHistory : Screen("doctor_visit_history")
 
 
 }
@@ -173,6 +181,32 @@ fun Navigation(
                 onBack = { navController.popBackStack() }
             )
         }
+        composable(Screen.DoctorPanel.route) {
+            DoctorPanelScreen(
+                onMyAppointments = {
+                    val doctorId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+                    navController.navigate(Screen.DoctorAppointments.createRoute(doctorId))
+                }
+                ,
+                onHistory = { navController.navigate(Screen.DoctorVisitHistory.route) }
+            )
+        }
+        composable(
+            route = Screen.DoctorAppointments.route,
+            arguments = listOf(navArgument("doctorId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val doctorId = backStackEntry.arguments?.getString("doctorId") ?: ""
+            DoctorAppointmentsScreen(
+                doctorId = doctorId,
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Screen.DoctorVisitHistory.route) {
+            DoctorVisitHistoryScreen(onBack = { navController.popBackStack() })
+        }
+
+
 
 
 

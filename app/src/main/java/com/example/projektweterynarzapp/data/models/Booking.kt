@@ -19,6 +19,6 @@ data class Booking(
     val visitType: String = "",     // np. "Kontrola", "Szczepienie", "Zabieg"
     val doctorId:  String = "",
     val doctorName:String = "",
-    val createdAt: String = Timestamp.now().toDate().toString()
+    val createdAt: Timestamp? = null
 )
 

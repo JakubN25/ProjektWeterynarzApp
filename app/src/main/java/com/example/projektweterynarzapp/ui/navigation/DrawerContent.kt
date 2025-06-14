@@ -20,10 +20,12 @@ fun DrawerContent(
     onProfileSelected: () -> Unit,
     onPetsSelected: () -> Unit,
     onBookingSelected: () -> Unit,
-    onAppointmentsSelected: () -> Unit, // ← dodano nowy callback
+    onAppointmentsSelected: () -> Unit,
     onAdminSelected: () -> Unit,
-    onLogoutSelected: () -> Unit
-) {
+    onLogoutSelected: () -> Unit,
+    onDoctorPanelSelected: () -> Unit,
+
+    ) {
     Column(modifier = Modifier.padding(16.dp)) {
         DrawerItem(text = "Strona główna", onClick = onHomeSelected)
         Spacer(Modifier.height(12.dp))
@@ -61,6 +63,12 @@ fun DrawerContent(
             if (currentUserRole == "admin") {
                 Divider(modifier = Modifier.padding(vertical = 8.dp))
                 DrawerItem(text = "Panel administracyjny", onClick = onAdminSelected)
+                Spacer(Modifier.height(12.dp))
+            }
+            // Dla doktora
+            if (currentUserRole == "doctor") {
+                Divider(modifier = Modifier.padding(vertical = 8.dp))
+                DrawerItem(text = "Panel doktora", onClick = onDoctorPanelSelected)
                 Spacer(Modifier.height(12.dp))
             }
 

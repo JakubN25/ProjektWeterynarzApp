@@ -43,8 +43,7 @@ fun DoctorVisitHistoryScreen(
                         if (selectedUser != null) {
                             selectedUser = null
                             bookings = emptyList()
-                        }
-                        else onBack()
+                        } else onBack()
                     }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Wstecz")
                     }
@@ -83,7 +82,10 @@ fun DoctorVisitHistoryScreen(
                     ) {
                         Column(Modifier.weight(1f)) {
                             Text(user.email)
-                            Text("${user.firstName} ${user.lastName}", style = MaterialTheme.typography.bodySmall)
+                            Text(
+                                "${user.firstName} ${user.lastName}",
+                                style = MaterialTheme.typography.bodySmall
+                            )
                         }
                         OutlinedButton(
                             onClick = {
@@ -105,8 +107,11 @@ fun DoctorVisitHistoryScreen(
             val today = LocalDate.now()
             val (future, past) = bookings.partition {
                 try {
-                    LocalDate.parse(it.date).isAfter(today) || LocalDate.parse(it.date).isEqual(today)
-                } catch (_: Exception) { false }
+                    LocalDate.parse(it.date).isAfter(today) || LocalDate.parse(it.date)
+                        .isEqual(today)
+                } catch (_: Exception) {
+                    false
+                }
             }
 
             LazyColumn(
@@ -115,6 +120,25 @@ fun DoctorVisitHistoryScreen(
                     .padding(innerPadding)
                     .padding(horizontal = 16.dp)
             ) {
+                // 1. KARTA DANYCH KONTAKTOWYCH
+                item {
+                    Card(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp)
+                    ) {
+                        Column(Modifier.padding(16.dp)) {
+                            Text("Dane kontaktowe pacjenta", fontWeight = FontWeight.Bold)
+                            Spacer(Modifier.height(6.dp))
+                            Text("Imię i nazwisko: ${selectedUser?.firstName} ${selectedUser?.lastName}")
+                            Text("E-mail: ${selectedUser?.email}")
+                            Text("Telefon: ${selectedUser?.phone}")
+                            Text("Adres: ${selectedUser?.address}, ${selectedUser?.city}")
+                        }
+                    }
+                }
+
+                // 2. HISTORIA WIZYT
                 item {
                     Text("Historia wizyt: ${selectedUser?.email}", fontWeight = FontWeight.SemiBold)
                     Spacer(Modifier.height(8.dp))
@@ -123,7 +147,12 @@ fun DoctorVisitHistoryScreen(
                     Text("Przyszłe wizyty", fontWeight = FontWeight.Bold)
                 }
                 if (future.isEmpty()) {
-                    item { Text("Brak przyszłych wizyt", style = MaterialTheme.typography.bodySmall) }
+                    item {
+                        Text(
+                            "Brak przyszłych wizyt",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
                 } else {
                     items(future.sortedBy { it.date + it.hour }) { booking ->
                         Card(
@@ -145,7 +174,12 @@ fun DoctorVisitHistoryScreen(
                     Text("Przeszłe wizyty", fontWeight = FontWeight.Bold)
                 }
                 if (past.isEmpty()) {
-                    item { Text("Brak przeszłych wizyt", style = MaterialTheme.typography.bodySmall) }
+                    item {
+                        Text(
+                            "Brak przeszłych wizyt",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
                 } else {
                     items(past.sortedByDescending { it.date + it.hour }) { booking ->
                         Card(

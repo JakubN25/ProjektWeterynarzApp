@@ -2,12 +2,7 @@ package com.example.projektweterynarzapp.ui.screens
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -17,17 +12,11 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import com.example.projektweterynarzapp.data.AuthRepository
 
-
-/**
- * Parametry:
- *  onNavigateToRegister – wywoływane, gdy użytkownik chce przejść do ekranu rejestracji
- *  onSuccessfulLogin – wywoływane, gdy logowanie powiodło się
- */
 @Composable
 fun LoginScreen(
     onNavigateToRegister: () -> Unit,
     onSuccessfulLogin: () -> Unit,
-    onNavigateToHome: () -> Unit      // nowy callback
+    onNavigateToHome: () -> Unit
 ) {
     val authRepo = remember { AuthRepository() }
     val coroutineScope = rememberCoroutineScope()
@@ -36,6 +25,11 @@ fun LoginScreen(
     var password by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(false) }
+
+    var showResetDialog by remember { mutableStateOf(false) }
+    var resetEmail by remember { mutableStateOf("") }
+    var globalResetInfo by remember { mutableStateOf<String?>(null) }
+    var globalResetError by remember { mutableStateOf<String?>(null) }
 
     Box(
         modifier = Modifier
@@ -47,17 +41,14 @@ fun LoginScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // Tytuł ekranu
             Text("Logowanie", style = MaterialTheme.typography.headlineMedium)
             Spacer(modifier = Modifier.height(8.dp))
 
-            // NOWY RZĄDEK: “← Powrót do strony głównej”
             TextButton(onClick = onNavigateToHome) {
                 Text(text = "<-  Powrót do strony głównej")
             }
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Pole “Email”
             OutlinedTextField(
                 value = email,
                 onValueChange = { email = it },
@@ -67,7 +58,6 @@ fun LoginScreen(
             )
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Pole “Hasło”
             OutlinedTextField(
                 value = password,
                 onValueChange = { password = it },
@@ -85,12 +75,20 @@ fun LoginScreen(
                 Text(errorMessage ?: "", color = MaterialTheme.colorScheme.error)
                 Spacer(modifier = Modifier.height(8.dp))
             }
+            // Komunikat po resecie hasła
+            if (globalResetInfo != null) {
+                Text(globalResetInfo!!, color = MaterialTheme.colorScheme.primary)
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+            if (globalResetError != null) {
+                Text(globalResetError!!, color = MaterialTheme.colorScheme.error)
+                Spacer(modifier = Modifier.height(8.dp))
+            }
 
             Button(
                 onClick = {
                     isLoading = true
                     errorMessage = null
-
                     coroutineScope.launch {
                         val user = authRepo.login(email.trim(), password.trim())
                         isLoading = false
@@ -105,8 +103,7 @@ fun LoginScreen(
             ) {
                 if (isLoading) {
                     CircularProgressIndicator(
-                        modifier = Modifier
-                            .size(24.dp),
+                        modifier = Modifier.size(24.dp),
                         strokeWidth = 2.dp,
                         color = MaterialTheme.colorScheme.onPrimary
                     )
@@ -116,10 +113,64 @@ fun LoginScreen(
             }
 
             Spacer(modifier = Modifier.height(12.dp))
-
             TextButton(onClick = onNavigateToRegister) {
                 Text("Nie masz konta? Zarejestruj się")
             }
+            TextButton(onClick = { showResetDialog = true }) {
+                Text("Nie pamiętasz hasła? Zresetuj je")
+            }
+        }
+
+        // --- Dialog resetowania hasła ---
+        if (showResetDialog) {
+            AlertDialog(
+                onDismissRequest = {
+                    showResetDialog = false
+                    resetEmail = ""
+                },
+                title = { Text("Resetowanie hasła") },
+                text = {
+                    Column {
+                        OutlinedTextField(
+                            value = resetEmail,
+                            onValueChange = { resetEmail = it },
+                            label = { Text("Email") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        enabled = resetEmail.isNotBlank(),
+                        onClick = {
+                            // Zresetuj dialog i pokaż komunikat po zamknięciu
+                            showResetDialog = false
+                            coroutineScope.launch {
+                                val ok = authRepo.sendPasswordReset(resetEmail.trim())
+                                resetEmail = ""
+                                globalResetInfo = if (ok)
+                                    "Link do resetu hasła został wysłany na Twój email"
+                                else {
+                                    globalResetError = "Nie udało się wysłać linku. Sprawdź adres email."
+                                    null
+                                }
+                                if (ok) globalResetError = null
+                            }
+                        }
+                    ) {
+                        Text("Wyślij link")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = {
+                        showResetDialog = false
+                        resetEmail = ""
+                    }) {
+                        Text("Anuluj")
+                    }
+                }
+            )
         }
     }
 }

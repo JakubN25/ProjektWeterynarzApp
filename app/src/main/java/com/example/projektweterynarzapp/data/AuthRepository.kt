@@ -511,6 +511,15 @@ class AuthRepository {
         }
     }
 
+    suspend fun sendPasswordReset(email: String): Boolean {
+        return try {
+            FirebaseAuth.getInstance().sendPasswordResetEmail(email).await()
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
 
 
 

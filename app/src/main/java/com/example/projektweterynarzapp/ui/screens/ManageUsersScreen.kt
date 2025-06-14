@@ -19,6 +19,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.sp
+import com.google.firebase.auth.FirebaseAuth
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
+
 
 data class UserAdmin(
     val id: String = "",
@@ -36,6 +40,9 @@ fun ManageUsersScreen(
 ) {
     val db = FirebaseFirestore.getInstance()
     val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val auth = FirebaseAuth.getInstance()
+
 
     var users by remember { mutableStateOf<List<UserAdmin>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
@@ -184,7 +191,24 @@ fun ManageUsersScreen(
                                     ) { Text("Zablokuj", maxLines = 1) }
 
                                     OutlinedButton(
-                                        onClick = { /* TODO: reset hasła */ },
+                                        onClick = {
+                                            coroutineScope.launch {
+                                                try {
+                                                    auth.sendPasswordResetEmail(user.email)
+                                                    Toast.makeText(
+                                                        context,
+                                                        "Wysłano email resetujący hasło do: ${user.email}",
+                                                        Toast.LENGTH_LONG
+                                                    ).show()
+                                                } catch (e: Exception) {
+                                                    Toast.makeText(
+                                                        context,
+                                                        "Błąd przy wysyłaniu emaila: ${e.localizedMessage}",
+                                                        Toast.LENGTH_LONG
+                                                    ).show()
+                                                }
+                                            }
+                                        },
                                         modifier = Modifier.height(36.dp)
                                     ) { Text("Reset", maxLines = 1) }
 

@@ -23,22 +23,19 @@ fun MyAppointmentsScreen() {
     var bookings by remember { mutableStateOf<List<Booking>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
 
+    // Obsługa anulowania
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var bookingToDelete by remember { mutableStateOf<Booking?>(null) }
+    var cancelInfo by remember { mutableStateOf<String?>(null) }
+
     fun reload() {
         isLoading = true
-        // uruchom jako coroutine
         CoroutineScope(Dispatchers.Main).launch {
             bookings = authRepo.getBookings().sortedBy { "${it.date} ${it.hour}" }
             isLoading = false
         }
     }
     LaunchedEffect(Unit) { reload() }
-
-    LaunchedEffect(Unit) {
-        isLoading = true
-        bookings = authRepo.getBookings()
-            .sortedBy { "${it.date} ${it.hour}" } // yyyy-MM-dd HH:mm – sortowanie rosnąco
-        isLoading = false
-    }
 
     Scaffold(
         topBar = {
@@ -56,19 +53,68 @@ fun MyAppointmentsScreen() {
             } else if (bookings.isEmpty()) {
                 Text("Brak wizyt", style = MaterialTheme.typography.bodyLarge)
             } else {
+                // Komunikat po anulowaniu
+                if (cancelInfo != null) {
+                    Text(cancelInfo!!, color = MaterialTheme.colorScheme.primary)
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
                 LazyColumn {
                     items(bookings) { booking ->
-                        BookingCard(booking)
+                        BookingCard(
+                            booking = booking,
+                            onCancel = {
+                                bookingToDelete = booking
+                                showDeleteDialog = true
+                            }
+                        )
                         Spacer(modifier = Modifier.height(12.dp))
                     }
                 }
             }
         }
+
+        // Dialog potwierdzający anulowanie wizyty
+        if (showDeleteDialog && bookingToDelete != null) {
+            AlertDialog(
+                onDismissRequest = { showDeleteDialog = false },
+                title = { Text("Anulowanie wizyty") },
+                text = { Text("Czy na pewno chcesz anulować tę wizytę? Tej operacji nie można cofnąć.") },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            showDeleteDialog = false
+                            coroutineScope.launch {
+                                val booking = bookingToDelete!!
+                                // Usuń z bookings usera
+                                if (booking.id.isNotBlank()) {
+                                    authRepo.deleteUserBooking(booking.userId, booking.id)
+                                    // Usuń z bookings doktora (znajdź id u doktora)
+                                    val doctorBookings = authRepo.getDoctorBookings(booking.doctorId)
+                                    val doctorBookingId = doctorBookings.find {
+                                        it.userId == booking.userId && it.date == booking.date && it.hour == booking.hour && it.petId == booking.petId
+                                    }?.id
+                                    if (!doctorBookingId.isNullOrBlank()) {
+                                        authRepo.deleteDoctorBooking(booking.doctorId, doctorBookingId)
+                                    }
+                                    cancelInfo = "Wizyta została anulowana."
+                                    reload()
+                                }
+                            }
+                        }
+                    ) { Text("Tak, anuluj") }
+                },
+                dismissButton = {
+                    OutlinedButton(onClick = { showDeleteDialog = false }) {
+                        Text("Nie")
+                    }
+                }
+            )
+        }
     }
 }
 
 @Composable
-fun BookingCard(booking: Booking) {
+fun BookingCard(booking: Booking, onCancel: (() -> Unit)? = null) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
@@ -79,6 +125,14 @@ fun BookingCard(booking: Booking) {
             Text("Data: ${booking.date} ${booking.hour}")
             Text("Lokalizacja: ${booking.location}")
             Text("Lekarz: ${booking.doctorName}")
+            Spacer(modifier = Modifier.height(8.dp))
+            // Przycisk anulowania jeśli przekazano callback
+            onCancel?.let {
+                OutlinedButton(onClick = onCancel, modifier = Modifier.height(38.dp)) {
+                    Text("Anuluj wizytę")
+                }
+            }
         }
     }
 }
+

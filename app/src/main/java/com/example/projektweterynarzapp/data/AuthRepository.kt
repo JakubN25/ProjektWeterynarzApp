@@ -89,7 +89,16 @@ class AuthRepository {
             e.printStackTrace()
             return null
         }
-        return result.user
+        val user = result.user ?: return null
+
+        // Nowy kod! Sprawdź pole disabled:
+        val userDoc = db.collection("users").document(user.uid).get().await()
+        if (userDoc.exists() && (userDoc.getBoolean("disabled") == true)) {
+            auth.signOut()
+            throw Exception("Twoje konto zostało zablokowane przez administratora.")
+        }
+
+        return user
     }
 
     /** Wylogowanie */

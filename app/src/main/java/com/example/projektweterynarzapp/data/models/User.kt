@@ -17,7 +17,8 @@ data class User(
     val phone: String = "",
     val address: String = "",
     val city: String = "",
-    val branch: String? = null
+    val branch: String? = null,
+    val disabled: Boolean = false
 )
 
 /**

@@ -23,14 +23,13 @@ import com.google.firebase.auth.FirebaseAuth
 import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
 
-
 data class UserAdmin(
     val id: String = "",
     val email: String = "",
     val firstName: String = "",
     val lastName: String = "",
     val role: String = "",
-    val status: String = "Aktywny"
+    val disabled: Boolean = false // tylko disabled
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -42,7 +41,6 @@ fun ManageUsersScreen(
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
     val auth = FirebaseAuth.getInstance()
-
 
     var users by remember { mutableStateOf<List<UserAdmin>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
@@ -62,14 +60,14 @@ fun ManageUsersScreen(
                 val firstName = doc.getString("firstName") ?: ""
                 val lastName = doc.getString("lastName") ?: ""
                 val role = doc.getString("role") ?: ""
-                val status = doc.getString("status") ?: "Aktywny"
+                val disabled = doc.getBoolean("disabled") ?: false
                 UserAdmin(
                     id = doc.id,
                     email = email,
                     firstName = firstName,
                     lastName = lastName,
                     role = role,
-                    status = status
+                    disabled = disabled
                 )
             }
         } catch (e: Exception) {
@@ -160,8 +158,9 @@ fun ManageUsersScreen(
                                     overflow = TextOverflow.Ellipsis,
                                     fontSize = 14.sp
                                 )
+                                // STATUS: wyświetlany na podstawie disabled
                                 Text(
-                                    user.status,
+                                    if (user.disabled) "Nieaktywny" else "Aktywny",
                                     modifier = Modifier.weight(1f),
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
@@ -185,10 +184,45 @@ fun ManageUsersScreen(
                                         modifier = Modifier.height(36.dp)
                                     ) { Text("Rola", maxLines = 1) }
 
-                                    OutlinedButton(
-                                        onClick = { /* TODO: blokuj */ },
-                                        modifier = Modifier.height(36.dp)
-                                    ) { Text("Zablokuj", maxLines = 1) }
+                                    if (!user.disabled) {
+                                        OutlinedButton(
+                                            onClick = {
+                                                coroutineScope.launch {
+                                                    try {
+                                                        db.collection("users").document(user.id)
+                                                            .update("disabled", true)
+                                                            .await()
+                                                        users = users.map {
+                                                            if (it.id == user.id) it.copy(disabled = true) else it
+                                                        }
+                                                        Toast.makeText(context, "Zablokowano użytkownika", Toast.LENGTH_SHORT).show()
+                                                    } catch (e: Exception) {
+                                                        Toast.makeText(context, "Błąd blokowania: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                                                    }
+                                                }
+                                            },
+                                            modifier = Modifier.height(36.dp)
+                                        ) { Text("Zablokuj", maxLines = 1) }
+                                    } else {
+                                        OutlinedButton(
+                                            onClick = {
+                                                coroutineScope.launch {
+                                                    try {
+                                                        db.collection("users").document(user.id)
+                                                            .update("disabled", false)
+                                                            .await()
+                                                        users = users.map {
+                                                            if (it.id == user.id) it.copy(disabled = false) else it
+                                                        }
+                                                        Toast.makeText(context, "Odblokowano użytkownika", Toast.LENGTH_SHORT).show()
+                                                    } catch (e: Exception) {
+                                                        Toast.makeText(context, "Błąd odblokowania: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                                                    }
+                                                }
+                                            },
+                                            modifier = Modifier.height(36.dp)
+                                        ) { Text("Odblokuj", maxLines = 1) }
+                                    }
 
                                     OutlinedButton(
                                         onClick = {

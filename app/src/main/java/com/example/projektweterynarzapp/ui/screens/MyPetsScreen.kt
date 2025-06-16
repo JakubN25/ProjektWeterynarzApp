@@ -30,18 +30,19 @@ fun MyPetsScreen(onNavigateBack: () -> Boolean) {
     var breed by remember { mutableStateOf("") }
     var ageText by remember { mutableStateOf("") }
     var weightText by remember { mutableStateOf("") }
-    var gender by remember { mutableStateOf("") }
+    var sex by remember { mutableStateOf("") }
 
-    // Dropdown dla płci
+    // Stany dla list rozwijanych
     var expandedSex by remember { mutableStateOf(false) }
+    var expandedSpecies by remember { mutableStateOf(false) }
     val sexOptions = listOf("Samiec", "Samica")
+    val speciesOptions = listOf("Pies", "Kot", "Papuga", "Jeż", "Mysz", "Królik", "Chomik", "Świnka morska", "Wąż")
 
     // Lista pets + ładowanie
     var pets by remember { mutableStateOf<List<Pet>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    // Funkcja pobierania listy zwierzaków
     fun loadPets() {
         coroutineScope.launch {
             isLoading = true
@@ -50,7 +51,6 @@ fun MyPetsScreen(onNavigateBack: () -> Boolean) {
         }
     }
 
-    // Po wejściu na ekran od razu ładuj listę
     LaunchedEffect(Unit) {
         loadPets()
     }
@@ -62,7 +62,6 @@ fun MyPetsScreen(onNavigateBack: () -> Boolean) {
             )
         },
         content = { innerPadding ->
-            // Używamy LazyColumn jako głównego kontenera, aby cała zawartość była przewijalna
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
@@ -87,7 +86,6 @@ fun MyPetsScreen(onNavigateBack: () -> Boolean) {
                     }
                 }
 
-                // Imię zwierzaka
                 item {
                     OutlinedTextField(
                         value = name,
@@ -99,19 +97,44 @@ fun MyPetsScreen(onNavigateBack: () -> Boolean) {
                     Spacer(modifier = Modifier.height(8.dp))
                 }
 
-                // Gatunek
+                // ZMIANA: Pole "Gatunek" jako dropdown
                 item {
-                    OutlinedTextField(
-                        value = species,
-                        onValueChange = { species = it },
-                        label = { Text("Gatunek") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        OutlinedTextField(
+                            value = species,
+                            onValueChange = { /* no-op */ },
+                            label = { Text("Gatunek") },
+                            readOnly = true,
+                            trailingIcon = {
+                                Icon(
+                                    imageVector = if (expandedSpecies) Icons.Filled.ArrowDropUp else Icons.Filled.ArrowDropDown,
+                                    contentDescription = null,
+                                    modifier = Modifier.clickable { expandedSpecies = !expandedSpecies }
+                                )
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { expandedSpecies = true }
+                        )
+                        DropdownMenu(
+                            expanded = expandedSpecies,
+                            onDismissRequest = { expandedSpecies = false },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            speciesOptions.forEach { option ->
+                                DropdownMenuItem(
+                                    text = { Text(option) },
+                                    onClick = {
+                                        species = option
+                                        expandedSpecies = false
+                                    }
+                                )
+                            }
+                        }
+                    }
                     Spacer(modifier = Modifier.height(8.dp))
                 }
 
-                // Rasa
                 item {
                     OutlinedTextField(
                         value = breed,
@@ -123,7 +146,6 @@ fun MyPetsScreen(onNavigateBack: () -> Boolean) {
                     Spacer(modifier = Modifier.height(8.dp))
                 }
 
-                // Waga
                 item {
                     OutlinedTextField(
                         value = weightText,
@@ -140,7 +162,6 @@ fun MyPetsScreen(onNavigateBack: () -> Boolean) {
                     Spacer(modifier = Modifier.height(8.dp))
                 }
 
-                // Wiek
                 item {
                     OutlinedTextField(
                         value = ageText,
@@ -153,11 +174,10 @@ fun MyPetsScreen(onNavigateBack: () -> Boolean) {
                     Spacer(modifier = Modifier.height(8.dp))
                 }
 
-                // Płeć (dropdown)
                 item {
                     Box(modifier = Modifier.fillMaxWidth()) {
                         OutlinedTextField(
-                            value = gender,
+                            value = sex,
                             onValueChange = { /* brak ręcznej edycji */ },
                             placeholder = { Text("Wybierz płeć") },
                             readOnly = true,
@@ -181,7 +201,7 @@ fun MyPetsScreen(onNavigateBack: () -> Boolean) {
                                 DropdownMenuItem(
                                     text = { Text(option) },
                                     onClick = {
-                                        gender = option
+                                        sex = option
                                         expandedSex = false
                                     }
                                 )
@@ -191,13 +211,12 @@ fun MyPetsScreen(onNavigateBack: () -> Boolean) {
                     Spacer(modifier = Modifier.height(12.dp))
                 }
 
-                // Przycisk „Dodaj zwierzaka”
                 item {
                     Button(
                         onClick = {
                             val age = ageText.toIntOrNull() ?: -1
                             val weight = weightText.toDoubleOrNull() ?: -1.0
-                            if (name.isBlank() || species.isBlank() || breed.isBlank() || gender.isBlank() || age < 0 || weight <= 0) {
+                            if (name.isBlank() || species.isBlank() || breed.isBlank() || sex.isBlank() || age < 0 || weight <= 0) {
                                 errorMessage = "Proszę wypełnić wszystkie pola prawidłowo."
                                 return@Button
                             }
@@ -212,11 +231,11 @@ fun MyPetsScreen(onNavigateBack: () -> Boolean) {
                                         breed = breed.trim(),
                                         age = age,
                                         weight = weight,
-                                        gender = gender
+                                        gender = sex
                                     )
                                 )
                                 if (success) {
-                                    name = ""; species = ""; breed = ""; ageText = ""; weightText = ""; gender = ""
+                                    name = ""; species = ""; breed = ""; ageText = ""; weightText = ""; sex = ""
                                     loadPets()
                                 } else {
                                     errorMessage = "Dodanie zwierzaka nie powiodło się."
@@ -230,7 +249,6 @@ fun MyPetsScreen(onNavigateBack: () -> Boolean) {
                     Spacer(modifier = Modifier.height(24.dp))
                 }
 
-                // Lista istniejących zwierzaków
                 item {
                     Text(
                         text = "Moje zwierzęta:",
@@ -257,7 +275,6 @@ fun MyPetsScreen(onNavigateBack: () -> Boolean) {
                             )
                         }
                     } else {
-                        // Elementy listy zwierząt są dodawane bezpośrednio do LazyColumn
                         items(pets) { pet ->
                             PetRow(
                                 pet = pet,
@@ -298,7 +315,9 @@ private fun PetRow(
     var sex by remember { mutableStateOf(pet.gender) }
 
     var expandedSex by remember { mutableStateOf(false) }
+    var expandedSpecies by remember { mutableStateOf(false) }
     val sexOptions = listOf("Samiec", "Samica")
+    val speciesOptions = listOf("Pies", "Kot", "Papuga", "Jeż", "Mysz", "Królik", "Chomik", "Świnka morska", "Wąż")
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     Column(modifier = Modifier.fillMaxWidth()) {
@@ -323,13 +342,43 @@ private fun PetRow(
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(modifier = Modifier.height(4.dp))
-            OutlinedTextField(
-                value = species,
-                onValueChange = { species = it },
-                label = { Text("Gatunek") },
-                modifier = Modifier.fillMaxWidth()
-            )
+
+            // ZMIANA: Pole "Gatunek" jako dropdown w edycji
+            Box(modifier = Modifier.fillMaxWidth()) {
+                OutlinedTextField(
+                    value = species,
+                    onValueChange = { /* no-op */ },
+                    label = { Text("Gatunek") },
+                    readOnly = true,
+                    trailingIcon = {
+                        Icon(
+                            imageVector = if (expandedSpecies) Icons.Filled.ArrowDropUp else Icons.Filled.ArrowDropDown,
+                            contentDescription = null,
+                            modifier = Modifier.clickable { expandedSpecies = !expandedSpecies }
+                        )
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { expandedSpecies = true }
+                )
+                DropdownMenu(
+                    expanded = expandedSpecies,
+                    onDismissRequest = { expandedSpecies = false },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    speciesOptions.forEach { option ->
+                        DropdownMenuItem(
+                            text = { Text(option) },
+                            onClick = {
+                                species = option
+                                expandedSpecies = false
+                            }
+                        )
+                    }
+                }
+            }
             Spacer(modifier = Modifier.height(4.dp))
+
             OutlinedTextField(
                 value = breed,
                 onValueChange = { breed = it },
@@ -337,7 +386,7 @@ private fun PetRow(
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(modifier = Modifier.height(4.dp))
-            // Waga
+
             OutlinedTextField(
                 value = weightText,
                 onValueChange = { if (it.all { c -> c.isDigit() || c == '.' }) weightText = it },
@@ -356,7 +405,7 @@ private fun PetRow(
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(modifier = Modifier.height(4.dp))
-            // Płeć dropdown
+
             Box(modifier = Modifier.fillMaxWidth()) {
                 OutlinedTextField(
                     value = sex,

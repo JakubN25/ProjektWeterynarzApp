@@ -226,7 +226,7 @@ fun ExpandablePetCard(pet: Pet) {
                 Text("• Rasa: ${pet.breed}")
                 Text("• Wiek: ${pet.age}")
                 Text("• Waga: ${pet.weight}")
-                Text("• Płeć: ${pet.sex}")
+                Text("• Płeć: ${pet.gender}")
             }
         }
     }

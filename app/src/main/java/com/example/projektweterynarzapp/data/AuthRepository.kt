@@ -195,7 +195,7 @@ class AuthRepository {
                 "breed"   to pet.breed,
                 "age"     to pet.age,
                 "weight"  to pet.weight,
-                "sex"     to pet.sex
+                "gender"     to pet.gender
             )
             petsCollection().add(data).await()
             true
@@ -218,7 +218,7 @@ class AuthRepository {
                 "breed"   to pet.breed,
                 "age"     to pet.age,
                 "weight"  to pet.weight,
-                "sex"     to pet.sex
+                "gender"     to pet.gender
             )
             petsCollection().document(pet.id).set(data).await()
             true

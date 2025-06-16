@@ -32,7 +32,7 @@ data class Pet(
     val breed: String = "",       // <- nowa rasa
     val age: Int = 0,             // wiek w latach
     val weight: Double = 0.0,     // waga w kg
-    val sex: String = ""          // np. "Samiec" / "Samica"
+    val gender: String = ""          // np. "Samiec" / "Samica"
 )
 
 

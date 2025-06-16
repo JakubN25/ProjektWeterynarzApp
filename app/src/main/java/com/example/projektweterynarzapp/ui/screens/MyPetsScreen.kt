@@ -30,7 +30,7 @@ fun MyPetsScreen(onNavigateBack: () -> Boolean) {
     var breed by remember { mutableStateOf("") }
     var ageText by remember { mutableStateOf("") }
     var weightText by remember { mutableStateOf("") }
-    var sex by remember { mutableStateOf("") }
+    var gender by remember { mutableStateOf("") }
 
     // Dropdown dla płci
     var expandedSex by remember { mutableStateOf(false) }
@@ -157,7 +157,7 @@ fun MyPetsScreen(onNavigateBack: () -> Boolean) {
                 item {
                     Box(modifier = Modifier.fillMaxWidth()) {
                         OutlinedTextField(
-                            value = sex,
+                            value = gender,
                             onValueChange = { /* brak ręcznej edycji */ },
                             placeholder = { Text("Wybierz płeć") },
                             readOnly = true,
@@ -181,7 +181,7 @@ fun MyPetsScreen(onNavigateBack: () -> Boolean) {
                                 DropdownMenuItem(
                                     text = { Text(option) },
                                     onClick = {
-                                        sex = option
+                                        gender = option
                                         expandedSex = false
                                     }
                                 )
@@ -197,7 +197,7 @@ fun MyPetsScreen(onNavigateBack: () -> Boolean) {
                         onClick = {
                             val age = ageText.toIntOrNull() ?: -1
                             val weight = weightText.toDoubleOrNull() ?: -1.0
-                            if (name.isBlank() || species.isBlank() || breed.isBlank() || sex.isBlank() || age < 0 || weight <= 0) {
+                            if (name.isBlank() || species.isBlank() || breed.isBlank() || gender.isBlank() || age < 0 || weight <= 0) {
                                 errorMessage = "Proszę wypełnić wszystkie pola prawidłowo."
                                 return@Button
                             }
@@ -212,11 +212,11 @@ fun MyPetsScreen(onNavigateBack: () -> Boolean) {
                                         breed = breed.trim(),
                                         age = age,
                                         weight = weight,
-                                        sex = sex
+                                        gender = gender
                                     )
                                 )
                                 if (success) {
-                                    name = ""; species = ""; breed = ""; ageText = ""; weightText = ""; sex = ""
+                                    name = ""; species = ""; breed = ""; ageText = ""; weightText = ""; gender = ""
                                     loadPets()
                                 } else {
                                     errorMessage = "Dodanie zwierzaka nie powiodło się."
@@ -295,7 +295,7 @@ private fun PetRow(
     var breed by remember { mutableStateOf(pet.breed) }
     var ageText by remember { mutableStateOf(pet.age.toString()) }
     var weightText by remember { mutableStateOf(pet.weight.toString()) }
-    var sex by remember { mutableStateOf(pet.sex) }
+    var sex by remember { mutableStateOf(pet.gender) }
 
     var expandedSex by remember { mutableStateOf(false) }
     val sexOptions = listOf("Samiec", "Samica")
@@ -307,7 +307,7 @@ private fun PetRow(
             Text("Gatunek: ${pet.species}", style = MaterialTheme.typography.bodyLarge)
             Text("Rasa: ${pet.breed}", style = MaterialTheme.typography.bodyLarge)
             Text("Waga: ${pet.weight} kg", style = MaterialTheme.typography.bodyLarge)
-            Text("Płeć: ${pet.sex}", style = MaterialTheme.typography.bodyLarge)
+            Text("Płeć: ${pet.gender}", style = MaterialTheme.typography.bodyLarge)
             Text("Wiek: ${pet.age} lat", style = MaterialTheme.typography.bodyLarge)
             Spacer(modifier = Modifier.height(4.dp))
             Row {
@@ -412,7 +412,7 @@ private fun PetRow(
                             breed = breed.trim(),
                             age = age,
                             weight = weight,
-                            sex = sex
+                            gender = sex
                         )
                     )
                     isEditing = false
@@ -421,7 +421,7 @@ private fun PetRow(
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 TextButton(onClick = {
-                    name = pet.name; species = pet.species; breed = pet.breed; ageText = pet.age.toString(); weightText = pet.weight.toString(); sex = pet.sex;
+                    name = pet.name; species = pet.species; breed = pet.breed; ageText = pet.age.toString(); weightText = pet.weight.toString(); sex = pet.gender;
                     errorMessage = null
                     isEditing = false
                 }) {

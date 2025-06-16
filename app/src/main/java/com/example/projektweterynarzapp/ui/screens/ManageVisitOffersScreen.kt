@@ -18,6 +18,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.foundation.text.KeyboardOptions
 
 /**
  * Data class reprezentująca ofertę wizyty
@@ -25,7 +27,8 @@ import androidx.compose.material.icons.filled.Delete
 data class VisitOffer(
     val id: String = "",
     val name: String = "",
-    val duration: Int = 0
+    val duration: Int = 0,
+    val price: Int = 0
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -43,25 +46,36 @@ fun ManageVisitOffersScreen(
     var editOffer by remember { mutableStateOf<VisitOffer?>(null) }
     var editName by remember { mutableStateOf("") }
     var editDuration by remember { mutableStateOf("") }
+    var editPrice by remember { mutableStateOf("") }
 
     // pola formularza
     var newName by remember { mutableStateOf("") }
     var newDuration by remember { mutableStateOf("") }
+    var newPrice by remember { mutableStateOf("") }
 
     // Ładowanie ofert z Firestore
-    LaunchedEffect(Unit) {
-        try {
-            val snapshot = db.collection("visitTypes").get().await()
-            offers = snapshot.documents.mapNotNull { doc ->
-                val name = doc.getString("name") ?: return@mapNotNull null
-                val duration = doc.getLong("duration")?.toInt() ?: return@mapNotNull null
-                VisitOffer(id = doc.id, name = name, duration = duration)
+    fun loadOffers() {
+        coroutineScope.launch {
+            try {
+                loading = true
+                val snapshot = db.collection("visitTypes").get().await()
+                offers = snapshot.documents.mapNotNull { doc ->
+                    val name = doc.getString("name") ?: return@mapNotNull null
+                    val duration = doc.getLong("duration")?.toInt() ?: return@mapNotNull null
+                    val price = doc.getLong("price")?.toInt() ?: 0
+                    VisitOffer(id = doc.id, name = name, duration = duration, price = price)
+                }
+            } catch (e: Exception) {
+                Log.e("ManageOffers", "Error loading offers", e)
+            } finally {
+                loading = false
             }
-        } catch (e: Exception) {
-            Log.e("ManageOffers", "Error loading offers", e)
-        } finally {
-            loading = false
         }
+    }
+
+
+    LaunchedEffect(Unit) {
+        loadOffers()
     }
 
     Scaffold(
@@ -88,7 +102,9 @@ fun ManageVisitOffersScreen(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text("Nazwa", fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                Text("Czas (min)", fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                Text("Czas (min)", fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(0.7f))
+                Text("Cena (PLN)", fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(0.7f))
+                Spacer(modifier = Modifier.weight(0.6f))
             }
             Divider(Modifier.padding(vertical = 8.dp))
 
@@ -109,32 +125,30 @@ fun ManageVisitOffersScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(offer.name, modifier = Modifier.weight(1f))
-                            Text(offer.duration.toString(), modifier = Modifier.weight(1f))
-                            IconButton(onClick = {
-                                // Rozpocznij edycję
-                                editOffer = offer
-                                editName = offer.name
-                                editDuration = offer.duration.toString()
-                            }) {
-                                Icon(Icons.Default.Edit, contentDescription = "Edytuj")
-                            }
-                            IconButton(onClick = {
-                                coroutineScope.launch {
-                                    try {
-                                        db.collection("visitTypes").document(offer.id).delete().await()
-                                        // odświeżenie listy
-                                        val snapshot = db.collection("visitTypes").get().await()
-                                        offers = snapshot.documents.mapNotNull { doc ->
-                                            val name = doc.getString("name") ?: return@mapNotNull null
-                                            val duration = doc.getLong("duration")?.toInt() ?: return@mapNotNull null
-                                            VisitOffer(id = doc.id, name = name, duration = duration)
-                                        }
-                                    } catch (e: Exception) {
-                                        Log.e("ManageOffers", "Error deleting offer", e)
-                                    }
+                            Text(offer.duration.toString(), modifier = Modifier.weight(0.7f))
+                            Text(offer.price.toString(), modifier = Modifier.weight(0.7f))
+                            Row(modifier = Modifier.weight(0.6f)) {
+                                IconButton(onClick = {
+                                    // Rozpocznij edycję
+                                    editOffer = offer
+                                    editName = offer.name
+                                    editDuration = offer.duration.toString()
+                                    editPrice = offer.price.toString()
+                                }) {
+                                    Icon(Icons.Default.Edit, contentDescription = "Edytuj")
                                 }
-                            }) {
-                                Icon(Icons.Default.Delete, contentDescription = "Usuń")
+                                IconButton(onClick = {
+                                    coroutineScope.launch {
+                                        try {
+                                            db.collection("visitTypes").document(offer.id).delete().await()
+                                            loadOffers()
+                                        } catch (e: Exception) {
+                                            Log.e("ManageOffers", "Error deleting offer", e)
+                                        }
+                                    }
+                                }) {
+                                    Icon(Icons.Default.Delete, contentDescription = "Usuń")
+                                }
                             }
                         }
                         Divider()
@@ -144,55 +158,62 @@ fun ManageVisitOffersScreen(
 
             Spacer(Modifier.height(16.dp))
 
-            Text("Dodaj nową ofertę", style = MaterialTheme.typography.titleMedium)
-            Spacer(Modifier.height(8.dp))
+            if (editOffer == null){
+                Text("Dodaj nową ofertę", style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.height(8.dp))
 
-            OutlinedTextField(
-                value = newName,
-                onValueChange = { newName = it },
-                label = { Text("Nazwa wizyty") },
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(Modifier.height(8.dp))
-            OutlinedTextField(
-                value = newDuration,
-                onValueChange = { newDuration = it.filter { c -> c.isDigit() } },
-                label = { Text("Czas trwania (min)") },
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(Modifier.height(8.dp))
-            Button(
-                onClick = {
-                    coroutineScope.launch {
-                        val dur = newDuration.toIntOrNull() ?: return@launch
-                        val data = mapOf(
-                            "name" to newName,
-                            "duration" to dur
-                        )
-                        try {
-                            db.collection("visitTypes").add(data).await()
-                            // odświeżenie listy
-                            val snapshot = db.collection("visitTypes").get().await()
-                            offers = snapshot.documents.mapNotNull { doc ->
-                                val name = doc.getString("name") ?: return@mapNotNull null
-                                val duration = doc.getLong("duration")?.toInt() ?: return@mapNotNull null
-                                VisitOffer(id = doc.id, name = name, duration = duration)
+                OutlinedTextField(
+                    value = newName,
+                    onValueChange = { newName = it },
+                    label = { Text("Nazwa wizyty") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = newDuration,
+                    onValueChange = { newDuration = it.filter { c -> c.isDigit() } },
+                    label = { Text("Czas trwania (min)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = newPrice,
+                    onValueChange = { newPrice = it.filter { c -> c.isDigit() } },
+                    label = { Text("Cena (PLN)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                )
+                Spacer(Modifier.height(8.dp))
+                Button(
+                    onClick = {
+                        coroutineScope.launch {
+                            val dur = newDuration.toIntOrNull() ?: return@launch
+                            val price = newPrice.toIntOrNull() ?: return@launch
+                            val data = mapOf(
+                                "name" to newName,
+                                "duration" to dur,
+                                "price" to price
+                            )
+                            try {
+                                db.collection("visitTypes").add(data).await()
+                                loadOffers()
+                                newName = ""
+                                newDuration = ""
+                                newPrice = ""
+                            } catch (e: Exception) {
+                                Log.e("ManageOffers", "Error adding offer", e)
                             }
-                            newName = ""
-                            newDuration = ""
-                        } catch (e: Exception) {
-                            Log.e("ManageOffers", "Error adding offer", e)
                         }
-                    }
-                },
-                enabled = newName.isNotBlank() && newDuration.isNotBlank(),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp)
-            ) {
-                Text("Dodaj ofertę")
-            }
-            if (editOffer != null) {
+                    },
+                    enabled = newName.isNotBlank() && newDuration.isNotBlank() && newPrice.isNotBlank(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                ) {
+                    Text("Dodaj ofertę")
+                }
+            } else {
                 Spacer(Modifier.height(16.dp))
                 Text("Edytuj ofertę", style = MaterialTheme.typography.titleMedium)
                 Spacer(Modifier.height(8.dp))
@@ -211,7 +232,16 @@ fun ManageVisitOffersScreen(
                     label = { Text("Czas trwania (min)") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    // usuwamy enabled=false!
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = editPrice,
+                    onValueChange = { editPrice = it.filter { c -> c.isDigit() } },
+                    label = { Text("Cena (PLN)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                 )
                 Spacer(Modifier.height(8.dp))
                 Row(Modifier.fillMaxWidth()) {
@@ -219,28 +249,25 @@ fun ManageVisitOffersScreen(
                         onClick = {
                             coroutineScope.launch {
                                 val dur = editDuration.toIntOrNull() ?: return@launch
+                                val price = editPrice.toIntOrNull() ?: return@launch
                                 val data = mapOf(
                                     "name" to editName,
-                                    "duration" to dur
+                                    "duration" to dur,
+                                    "price" to price
                                 )
                                 try {
                                     db.collection("visitTypes").document(editOffer!!.id).update(data).await()
-                                    // odświeżenie listy
-                                    val snapshot = db.collection("visitTypes").get().await()
-                                    offers = snapshot.documents.mapNotNull { doc ->
-                                        val name = doc.getString("name") ?: return@mapNotNull null
-                                        val duration = doc.getLong("duration")?.toInt() ?: return@mapNotNull null
-                                        VisitOffer(id = doc.id, name = name, duration = duration)
-                                    }
+                                    loadOffers()
                                     editOffer = null
                                     editName = ""
                                     editDuration = ""
+                                    editPrice = ""
                                 } catch (e: Exception) {
                                     Log.e("ManageOffers", "Error updating offer", e)
                                 }
                             }
                         },
-                        enabled = editName.isNotBlank() && editDuration.isNotBlank(),
+                        enabled = editName.isNotBlank() && editDuration.isNotBlank() && editPrice.isNotBlank(),
                         modifier = Modifier
                             .weight(1f)
                             .height(48.dp)
@@ -253,6 +280,7 @@ fun ManageVisitOffersScreen(
                             editOffer = null
                             editName = ""
                             editDuration = ""
+                            editPrice = ""
                         },
                         modifier = Modifier
                             .weight(1f)

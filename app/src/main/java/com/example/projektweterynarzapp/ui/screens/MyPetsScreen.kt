@@ -62,194 +62,219 @@ fun MyPetsScreen(onNavigateBack: () -> Boolean) {
             )
         },
         content = { innerPadding ->
-            Column(
+            // Używamy LazyColumn jako głównego kontenera, aby cała zawartość była przewijalna
+            LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
                     .padding(16.dp)
             ) {
-                Text(
-                    text = "Dodaj nowe zwierzę",
-                    style = MaterialTheme.typography.headlineSmall
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-
-                if (errorMessage != null) {
+                item {
                     Text(
-                        text = errorMessage ?: "",
-                        color = MaterialTheme.colorScheme.error
+                        text = "Dodaj nowe zwierzę",
+                        style = MaterialTheme.typography.headlineSmall
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                 }
 
-                // Imię zwierzaka
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text("Imię zwierzaka") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Gatunek
-                OutlinedTextField(
-                    value = species,
-                    onValueChange = { species = it },
-                    label = { Text("Gatunek") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Rasa
-                OutlinedTextField(
-                    value = breed,
-                    onValueChange = { breed = it },
-                    label = { Text("Rasa") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Waga
-                OutlinedTextField(
-                    value = weightText,
-                    onValueChange = {
-                        if (it.all { c -> c.isDigit() || c == '.' }) {
-                            weightText = it
-                        }
-                    },
-                    label = { Text("Waga (kg)") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                // Wiek
-                OutlinedTextField(
-                    value = ageText,
-                    onValueChange = { if (it.all { c -> c.isDigit() }) ageText = it },
-                    label = { Text("Wiek (lata)") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                // Płeć (dropdown)
-                Box(modifier = Modifier.fillMaxWidth()) {
-                    OutlinedTextField(
-                        value = sex,
-                        onValueChange = { /* brak ręcznej edycji */ },
-                        placeholder = { Text("Wybierz płeć") },
-                        readOnly = true,
-                        trailingIcon = {
-                            Icon(
-                                imageVector = if (expandedSex) Icons.Filled.ArrowDropUp else Icons.Filled.ArrowDropDown,
-                                contentDescription = null,
-                                modifier = Modifier.clickable { expandedSex = !expandedSex }
-                            )
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { expandedSex = true }
-                    )
-                    DropdownMenu(
-                        expanded = expandedSex,
-                        onDismissRequest = { expandedSex = false },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        sexOptions.forEach { option ->
-                            DropdownMenuItem(
-                                text = { Text(option) },
-                                onClick = {
-                                    sex = option
-                                    expandedSex = false
-                                }
-                            )
-                        }
+                if (errorMessage != null) {
+                    item {
+                        Text(
+                            text = errorMessage ?: "",
+                            color = MaterialTheme.colorScheme.error
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                // Imię zwierzaka
+                item {
+                    OutlinedTextField(
+                        value = name,
+                        onValueChange = { name = it },
+                        label = { Text("Imię zwierzaka") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
 
-                // Przycisk „Dodaj zwierzaka”
-                Button(
-                    onClick = {
-                        val age = ageText.toIntOrNull() ?: -1
-                        val weight = weightText.toDoubleOrNull() ?: -1.0
-                        if (name.isBlank() || species.isBlank() || breed.isBlank() || sex.isBlank() || age < 0 || weight <= 0) {
-                            errorMessage = "Proszę wypełnić wszystkie pola prawidłowo."
-                            return@Button
-                        }
-                        errorMessage = null
+                // Gatunek
+                item {
+                    OutlinedTextField(
+                        value = species,
+                        onValueChange = { species = it },
+                        label = { Text("Gatunek") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
 
-                        coroutineScope.launch {
-                            val success = authRepo.addPet(
-                                Pet(
-                                    id = "",
-                                    name = name.trim(),
-                                    species = species.trim(),
-                                    breed = breed.trim(),
-                                    age = age,
-                                    weight = weight,
-                                    sex = sex
+                // Rasa
+                item {
+                    OutlinedTextField(
+                        value = breed,
+                        onValueChange = { breed = it },
+                        label = { Text("Rasa") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
+                // Waga
+                item {
+                    OutlinedTextField(
+                        value = weightText,
+                        onValueChange = {
+                            if (it.all { c -> c.isDigit() || c == '.' }) {
+                                weightText = it
+                            }
+                        },
+                        label = { Text("Waga (kg)") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
+                // Wiek
+                item {
+                    OutlinedTextField(
+                        value = ageText,
+                        onValueChange = { if (it.all { c -> c.isDigit() }) ageText = it },
+                        label = { Text("Wiek (lata)") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
+                // Płeć (dropdown)
+                item {
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        OutlinedTextField(
+                            value = sex,
+                            onValueChange = { /* brak ręcznej edycji */ },
+                            placeholder = { Text("Wybierz płeć") },
+                            readOnly = true,
+                            trailingIcon = {
+                                Icon(
+                                    imageVector = if (expandedSex) Icons.Filled.ArrowDropUp else Icons.Filled.ArrowDropDown,
+                                    contentDescription = null,
+                                    modifier = Modifier.clickable { expandedSex = !expandedSex }
                                 )
-                            )
-                            if (success) {
-                                name = ""; species = ""; breed = ""; ageText = ""; weightText = ""; sex = ""
-                                loadPets()
-                            } else {
-                                errorMessage = "Dodanie zwierzaka nie powiodło się."
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { expandedSex = true }
+                        )
+                        DropdownMenu(
+                            expanded = expandedSex,
+                            onDismissRequest = { expandedSex = false },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            sexOptions.forEach { option ->
+                                DropdownMenuItem(
+                                    text = { Text(option) },
+                                    onClick = {
+                                        sex = option
+                                        expandedSex = false
+                                    }
+                                )
                             }
                         }
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Dodaj zwierzaka")
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
                 }
-                Spacer(modifier = Modifier.height(24.dp))
+
+                // Przycisk „Dodaj zwierzaka”
+                item {
+                    Button(
+                        onClick = {
+                            val age = ageText.toIntOrNull() ?: -1
+                            val weight = weightText.toDoubleOrNull() ?: -1.0
+                            if (name.isBlank() || species.isBlank() || breed.isBlank() || sex.isBlank() || age < 0 || weight <= 0) {
+                                errorMessage = "Proszę wypełnić wszystkie pola prawidłowo."
+                                return@Button
+                            }
+                            errorMessage = null
+
+                            coroutineScope.launch {
+                                val success = authRepo.addPet(
+                                    Pet(
+                                        id = "",
+                                        name = name.trim(),
+                                        species = species.trim(),
+                                        breed = breed.trim(),
+                                        age = age,
+                                        weight = weight,
+                                        sex = sex
+                                    )
+                                )
+                                if (success) {
+                                    name = ""; species = ""; breed = ""; ageText = ""; weightText = ""; sex = ""
+                                    loadPets()
+                                } else {
+                                    errorMessage = "Dodanie zwierzaka nie powiodło się."
+                                }
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Dodaj zwierzaka")
+                    }
+                    Spacer(modifier = Modifier.height(24.dp))
+                }
 
                 // Lista istniejących zwierzaków
-                Text(
-                    text = "Moje zwierzęta:",
-                    style = MaterialTheme.typography.headlineSmall
-                )
-                Spacer(modifier = Modifier.height(8.dp))
+                item {
+                    Text(
+                        text = "Moje zwierzęta:",
+                        style = MaterialTheme.typography.headlineSmall
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
 
                 if (isLoading) {
-                    Box(
-                        modifier = Modifier.fillMaxWidth(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator()
+                    item {
+                        Box(
+                            modifier = Modifier.fillMaxWidth(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator()
+                        }
                     }
                 } else {
                     if (pets.isEmpty()) {
-                        Text(
-                            text = "Brak dodanych zwierzaków.",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
+                        item {
+                            Text(
+                                text = "Brak dodanych zwierzaków.",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
                     } else {
-                        LazyColumn {
-                            items(pets) { pet ->
-                                PetRow(
-                                    pet = pet,
-                                    onUpdate = { updatedPet ->
-                                        coroutineScope.launch {
-                                            val ok = authRepo.updatePet(updatedPet)
-                                            if (ok) loadPets()
-                                        }
-                                    },
-                                    onDelete = {
-                                        coroutineScope.launch {
-                                            val ok = authRepo.deletePet(pet.id)
-                                            if (ok) loadPets()
-                                        }
+                        // Elementy listy zwierząt są dodawane bezpośrednio do LazyColumn
+                        items(pets) { pet ->
+                            PetRow(
+                                pet = pet,
+                                onUpdate = { updatedPet ->
+                                    coroutineScope.launch {
+                                        val ok = authRepo.updatePet(updatedPet)
+                                        if (ok) loadPets()
                                     }
-                                )
-                                Divider(modifier = Modifier.padding(vertical = 8.dp))
-                            }
+                                },
+                                onDelete = {
+                                    coroutineScope.launch {
+                                        val ok = authRepo.deletePet(pet.id)
+                                        if (ok) loadPets()
+                                    }
+                                }
+                            )
+                            Divider(modifier = Modifier.padding(vertical = 8.dp))
                         }
                     }
                 }

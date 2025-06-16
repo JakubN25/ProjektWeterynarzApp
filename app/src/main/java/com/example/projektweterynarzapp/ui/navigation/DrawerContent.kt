@@ -24,7 +24,8 @@ fun DrawerContent(
     onAdminSelected: () -> Unit,
     onLogoutSelected: () -> Unit,
     onDoctorPanelSelected: () -> Unit,
-    onPriceListSelected: () -> Unit
+    onPriceListSelected: () -> Unit,
+    onFaqSelected: () -> Unit
 
     ) {
     Column(modifier = Modifier.padding(16.dp)) {
@@ -61,6 +62,9 @@ fun DrawerContent(
             Spacer(Modifier.height(12.dp))
 
             DrawerItem(text = "Cennik", onClick = onPriceListSelected)
+            Spacer(Modifier.height(12.dp))
+
+            DrawerItem(text = "FAQ", onClick = onFaqSelected)
             Spacer(Modifier.height(12.dp))
 
             // ← TYLKO DLA ADMINA LUB LEKARZA

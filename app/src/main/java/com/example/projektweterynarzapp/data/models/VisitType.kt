@@ -6,5 +6,6 @@ import com.google.firebase.firestore.IgnoreExtraProperties
 data class VisitType(
     val id: String = "",
     val name: String = "",
-    val duration: Int = 0
+    val duration: Int = 0,
+    val price: Int = 0
 )

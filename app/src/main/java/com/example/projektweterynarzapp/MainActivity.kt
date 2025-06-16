@@ -128,6 +128,12 @@ class MainActivity : ComponentActivity() {
                                         navController.navigate(Screen.DoctorPanel.route)
                                     }
                                 },
+                                onPriceListSelected = {
+                                    scope.launch {
+                                        drawerState.close()
+                                        navController.navigate(Screen.PriceList.route)
+                                    }
+                                },
                                 onAppointmentsSelected = {
                                     scope.launch {
                                         drawerState.close()

@@ -20,6 +20,7 @@ sealed class Screen(val route: String) {
     object Pets : Screen("pets_screen")
     object Booking : Screen("booking_screen")
     object MyAppointments : Screen("my_appointments_screen")
+    object PriceList : Screen("price_list_screen")
     object BookingDate : Screen("booking_date/{location}") {
         fun createRoute(location: String) = "booking_date/$location"
     }
@@ -206,7 +207,9 @@ fun Navigation(
             DoctorVisitHistoryScreen(onBack = { navController.popBackStack() })
         }
 
-
+        composable(Screen.PriceList.route) {
+            PriceListScreen(onBack = { navController.popBackStack() })
+        }
 
 
 

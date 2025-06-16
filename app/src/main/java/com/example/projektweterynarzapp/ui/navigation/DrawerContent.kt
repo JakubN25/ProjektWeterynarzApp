@@ -24,6 +24,7 @@ fun DrawerContent(
     onAdminSelected: () -> Unit,
     onLogoutSelected: () -> Unit,
     onDoctorPanelSelected: () -> Unit,
+    onPriceListSelected: () -> Unit
 
     ) {
     Column(modifier = Modifier.padding(16.dp)) {
@@ -57,6 +58,9 @@ fun DrawerContent(
 
             // ← NOWA POZYCJA DLA “Moje wizyty”
             DrawerItem(text = "Moje wizyty", onClick = onAppointmentsSelected)
+            Spacer(Modifier.height(12.dp))
+
+            DrawerItem(text = "Cennik", onClick = onPriceListSelected)
             Spacer(Modifier.height(12.dp))
 
             // ← TYLKO DLA ADMINA LUB LEKARZA

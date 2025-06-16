@@ -39,7 +39,7 @@ fun FaqScreen() {
     // Lista pytań i odpowiedzi zdefiniowana bezpośrednio w ekranie
     val faqItems = remember {
         listOf(
-            "Jakie są godziny otwarcia?" to "Nasza klinika jest otwarta od poniedziałku do piątku w godzinach 9:00 - 20:00.",
+            "Jakie są godziny otwarcia?" to "Nasza klinika jest otwarta od poniedziałku do piątku w godzinach 8:00 - 20:00.",
             "Czy muszę umawiać wizytę?" to "Tak, zalecamy wcześniejsze umówienie wizyty, aby uniknąć oczekiwania. W nagłych przypadkach przyjmujemy bez umówienia, ale pacjenci z rezerwacją mają pierwszeństwo.",
             "Jak mogę umówić wizytę?" to "Wizytę można umówić telefonicznie, mailowo lub poprzez formularz rezerwacji który znajduje się w naszej aplikacji mobilnej i na naszej stronie internetowej.",
             "Czy wykonujecie zabiegi chirurgiczne?" to "Tak, wykonujemy szeroki zakres zabiegów chirurgicznych. Prosimy o kontakt w celu omówienia szczegółów i umówienia konsultacji przedzabiegowej.",

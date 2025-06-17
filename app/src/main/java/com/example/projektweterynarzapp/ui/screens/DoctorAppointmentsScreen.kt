@@ -37,6 +37,20 @@ fun DoctorAppointmentsScreen(
         isLoading = false
     }
 
+    // Funkcja do pobrania aktualnej daty i godziny jako string "YYYY-MM-DD HH:mm"
+    fun getCurrentDateTimeString(): String {
+        val now = java.time.LocalDateTime.now()
+        return "${now.toLocalDate()} ${now.toLocalTime().toString().substring(0, 5)}"
+    }
+
+// Tylko nadchodzące wizyty
+    val currentDateTime = getCurrentDateTimeString()
+    val upcomingBookings = bookings.filter {
+        val bookingDateTime = "${it.date} ${it.hour}"
+        bookingDateTime >= currentDateTime
+    }
+
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -59,96 +73,135 @@ fun DoctorAppointmentsScreen(
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
                 }
-            } else if (bookings.isEmpty()) {
-                Text("Brak wizyt", style = MaterialTheme.typography.bodyLarge)
             } else {
-                LazyColumn {
-                    items(bookings) { booking ->
-                        Card(
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 6.dp)
-                        ) {
-                            Column(Modifier.padding(16.dp)) {
-                                // DATA
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text("Data: ", style = MaterialTheme.typography.bodyMedium)
-                                    Text(booking.date, style = MaterialTheme.typography.titleMedium)
-                                }
-                                // GODZINA
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text("Godzina: ", style = MaterialTheme.typography.bodyMedium)
-                                    Text(booking.hour, style = MaterialTheme.typography.titleMedium)
-                                }
-                                // EMAIL
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text("Email właściciela: ", style = MaterialTheme.typography.bodyMedium)
-                                    Text(userEmailMap[booking.userId] ?: booking.userId, style = MaterialTheme.typography.titleMedium)
-                                }
-                                // ZWIERZAK
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text("Zwierzak: ", style = MaterialTheme.typography.bodyMedium)
-                                    Text("${booking.petName} (${booking.petSpecies})", style = MaterialTheme.typography.titleMedium)
-                                }
-                                // RODZAJ WIZYTY
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text("Rodzaj wizyty: ", style = MaterialTheme.typography.bodyMedium)
-                                    Text(booking.visitType, style = MaterialTheme.typography.titleMedium)
-                                }
+                // Filtrowanie wizyt - tylko przyszłe i obecne
+                fun getCurrentDateTimeString(): String {
+                    val now = java.time.LocalDateTime.now()
+                    return "${now.toLocalDate()} ${now.toLocalTime().toString().substring(0, 5)}"
+                }
 
-                                Spacer(Modifier.height(8.dp))
-                                OutlinedButton(
-                                    onClick = {
-                                        bookingToDelete = booking
-                                        showDeleteDialog = true
-                                    },
-                                    modifier = Modifier.height(38.dp)
-                                ) {
-                                    Text("Anuluj wizytę")
+                val currentDateTime = getCurrentDateTimeString()
+                val upcomingBookings = bookings.filter {
+                    val bookingDateTime = "${it.date} ${it.hour}"
+                    bookingDateTime >= currentDateTime
+                }
+
+                if (upcomingBookings.isEmpty()) {
+                    Text("Brak nadchodzących wizyt", style = MaterialTheme.typography.bodyLarge)
+                } else {
+                    LazyColumn {
+                        items(upcomingBookings) { booking ->
+                            Card(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 6.dp)
+                            ) {
+                                Column(Modifier.padding(16.dp)) {
+                                    // ... reszta jak wcześniej ...
+                                    // (tutaj zostaw wszystko bez zmian)
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text("Data: ", style = MaterialTheme.typography.bodyMedium)
+                                        Text(
+                                            booking.date,
+                                            style = MaterialTheme.typography.titleMedium
+                                        )
+                                    }
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            "Godzina: ",
+                                            style = MaterialTheme.typography.bodyMedium
+                                        )
+                                        Text(
+                                            booking.hour,
+                                            style = MaterialTheme.typography.titleMedium
+                                        )
+                                    }
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            "Email właściciela: ",
+                                            style = MaterialTheme.typography.bodyMedium
+                                        )
+                                        Text(
+                                            userEmailMap[booking.userId] ?: booking.userId,
+                                            style = MaterialTheme.typography.titleMedium
+                                        )
+                                    }
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            "Zwierzak: ",
+                                            style = MaterialTheme.typography.bodyMedium
+                                        )
+                                        Text(
+                                            "${booking.petName} (${booking.petSpecies})",
+                                            style = MaterialTheme.typography.titleMedium
+                                        )
+                                    }
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            "Rodzaj wizyty: ",
+                                            style = MaterialTheme.typography.bodyMedium
+                                        )
+                                        Text(
+                                            booking.visitType,
+                                            style = MaterialTheme.typography.titleMedium
+                                        )
+                                    }
+
+                                    Spacer(Modifier.height(8.dp))
+                                    OutlinedButton(
+                                        onClick = {
+                                            bookingToDelete = booking
+                                            showDeleteDialog = true
+                                        },
+                                        modifier = Modifier.height(38.dp)
+                                    ) {
+                                        Text("Anuluj wizytę")
+                                    }
                                 }
                             }
                         }
                     }
                 }
             }
-        }
 
-        // Dialog potwierdzający usuwanie
-        if (showDeleteDialog && bookingToDelete != null) {
-            AlertDialog(
-                onDismissRequest = { showDeleteDialog = false },
-                title = { Text("Potwierdź anulowanie wizyty") },
-                text = { Text("Czy na pewno chcesz anulować tę wizytę? Tej operacji nie można cofnąć.") },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            coroutineScope.launch {
-                                val booking = bookingToDelete!!
-                                // Szukamy id wizyty w bookings użytkownika
-                                val userBookings = repo.getPatientBookings(booking.userId)
-                                val userBookingId = userBookings.find {
-                                    it.doctorId == doctorId && it.hour == booking.hour && it.date == booking.date && it.petId == booking.petId
-                                }?.id
-                                // Usuwamy wizytę u doktora i u użytkownika
-                                if (booking.id.isNotBlank()) {
-                                    repo.deleteDoctorBooking(doctorId, booking.id)
+            // Dialog potwierdzający usuwanie
+            if (showDeleteDialog && bookingToDelete != null) {
+                AlertDialog(
+                    onDismissRequest = { showDeleteDialog = false },
+                    title = { Text("Potwierdź anulowanie wizyty") },
+                    text = { Text("Czy na pewno chcesz anulować tę wizytę? Tej operacji nie można cofnąć.") },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                coroutineScope.launch {
+                                    val booking = bookingToDelete!!
+                                    // Szukamy id wizyty w bookings użytkownika
+                                    val userBookings = repo.getPatientBookings(booking.userId)
+                                    val userBookingId = userBookings.find {
+                                        it.doctorId == doctorId && it.hour == booking.hour && it.date == booking.date && it.petId == booking.petId
+                                    }?.id
+                                    // Usuwamy wizytę u doktora i u użytkownika
+                                    if (booking.id.isNotBlank()) {
+                                        repo.deleteDoctorBooking(doctorId, booking.id)
+                                    }
+                                    if (!userBookingId.isNullOrBlank()) {
+                                        repo.deleteUserBooking(booking.userId, userBookingId)
+                                    }
+                                    // Odśwież
+                                    bookings = repo.getDoctorBookings(doctorId)
+                                        .sortedBy { "${it.date} ${it.hour}" }
+                                    showDeleteDialog = false
                                 }
-                                if (!userBookingId.isNullOrBlank()) {
-                                    repo.deleteUserBooking(booking.userId, userBookingId)
-                                }
-                                // Odśwież
-                                bookings = repo.getDoctorBookings(doctorId).sortedBy { "${it.date} ${it.hour}" }
-                                showDeleteDialog = false
                             }
+                        ) { Text("Tak, anuluj") }
+                    },
+                    dismissButton = {
+                        OutlinedButton(onClick = { showDeleteDialog = false }) {
+                            Text("Nie")
                         }
-                    ) { Text("Tak, anuluj") }
-                },
-                dismissButton = {
-                    OutlinedButton(onClick = { showDeleteDialog = false }) {
-                        Text("Nie")
                     }
-                }
-            )
+                )
+            }
         }
     }
 }

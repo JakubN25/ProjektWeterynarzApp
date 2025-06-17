@@ -23,7 +23,6 @@ fun MyAppointmentsScreen() {
     var bookings by remember { mutableStateOf<List<Booking>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
 
-    // Obsługa anulowania
     var showDeleteDialog by remember { mutableStateOf(false) }
     var bookingToDelete by remember { mutableStateOf<Booking?>(null) }
     var cancelInfo by remember { mutableStateOf<String?>(null) }
@@ -36,6 +35,25 @@ fun MyAppointmentsScreen() {
         }
     }
     LaunchedEffect(Unit) { reload() }
+
+    // Dodaj pobieranie aktualnej daty i godziny
+    fun getCurrentDateTimeString(): String {
+        val now = java.time.LocalDateTime.now()
+        return "${now.toLocalDate()} ${now.toLocalTime().toString().substring(0,5)}"
+    }
+
+    val currentDateTime = getCurrentDateTimeString()
+
+    // Podziel wizyty na nadchodzące i przeszłe
+    val upcomingBookings = bookings.filter {
+        // Daty i godziny muszą być porównywane jako Stringi: "YYYY-MM-DD HH:mm"
+        val bookingDateTime = "${it.date} ${it.hour}"
+        bookingDateTime >= currentDateTime
+    }
+    val pastBookings = bookings.filter {
+        val bookingDateTime = "${it.date} ${it.hour}"
+        bookingDateTime < currentDateTime
+    }
 
     Scaffold(
         topBar = {
@@ -53,21 +71,48 @@ fun MyAppointmentsScreen() {
             } else if (bookings.isEmpty()) {
                 Text("Brak wizyt", style = MaterialTheme.typography.bodyLarge)
             } else {
-                // Komunikat po anulowaniu
                 if (cancelInfo != null) {
                     Text(cancelInfo!!, color = MaterialTheme.colorScheme.primary)
                     Spacer(modifier = Modifier.height(8.dp))
                 }
-                LazyColumn {
-                    items(bookings) { booking ->
-                        BookingCard(
-                            booking = booking,
-                            onCancel = {
-                                bookingToDelete = booking
-                                showDeleteDialog = true
-                            }
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
+
+                // NADCHODZĄCE WIZYTY
+                if (upcomingBookings.isNotEmpty()) {
+                    Text(
+                        "Nadchodzące wizyty",
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    LazyColumn {
+                        items(upcomingBookings) { booking ->
+                            BookingCard(
+                                booking = booking,
+                                onCancel = {
+                                    bookingToDelete = booking
+                                    showDeleteDialog = true
+                                }
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                        }
+                    }
+                } else {
+                    Text("Brak nadchodzących wizyt.", style = MaterialTheme.typography.bodyLarge)
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // PRZESZŁE WIZYTY
+                if (pastBookings.isNotEmpty()) {
+                    Text(
+                        "Przeszłe wizyty",
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    LazyColumn {
+                        items(pastBookings) { booking ->
+                            BookingCard(booking = booking)
+                            Spacer(modifier = Modifier.height(12.dp))
+                        }
                     }
                 }
             }
@@ -85,10 +130,8 @@ fun MyAppointmentsScreen() {
                             showDeleteDialog = false
                             coroutineScope.launch {
                                 val booking = bookingToDelete!!
-                                // Usuń z bookings usera
                                 if (booking.id.isNotBlank()) {
                                     authRepo.deleteUserBooking(booking.userId, booking.id)
-                                    // Usuń z bookings doktora (znajdź id u doktora)
                                     val doctorBookings = authRepo.getDoctorBookings(booking.doctorId)
                                     val doctorBookingId = doctorBookings.find {
                                         it.userId == booking.userId && it.date == booking.date && it.hour == booking.hour && it.petId == booking.petId
@@ -126,7 +169,7 @@ fun BookingCard(booking: Booking, onCancel: (() -> Unit)? = null) {
             Text("Lokalizacja: ${booking.location}")
             Text("Lekarz: ${booking.doctorName}")
             Spacer(modifier = Modifier.height(8.dp))
-            // Przycisk anulowania jeśli przekazano callback
+            // Przycisk anulowania tylko dla nadchodzących wizyt
             onCancel?.let {
                 OutlinedButton(onClick = onCancel, modifier = Modifier.height(38.dp)) {
                     Text("Anuluj wizytę")
@@ -135,4 +178,5 @@ fun BookingCard(booking: Booking, onCancel: (() -> Unit)? = null) {
         }
     }
 }
+
 

@@ -76,14 +76,15 @@ fun MyAppointmentsScreen() {
                     Spacer(modifier = Modifier.height(8.dp))
                 }
 
-                // NADCHODZĄCE WIZYTY
-                if (upcomingBookings.isNotEmpty()) {
-                    Text(
-                        "Nadchodzące wizyty",
-                        style = MaterialTheme.typography.titleLarge
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    LazyColumn {
+                LazyColumn {
+                    if (upcomingBookings.isNotEmpty()) {
+                        item {
+                            Text(
+                                "Nadchodzące wizyty",
+                                style = MaterialTheme.typography.titleLarge
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
                         items(upcomingBookings) { booking ->
                             BookingCard(
                                 booking = booking,
@@ -94,21 +95,21 @@ fun MyAppointmentsScreen() {
                             )
                             Spacer(modifier = Modifier.height(12.dp))
                         }
+                    } else {
+                        item {
+                            Text("Brak nadchodzących wizyt.", style = MaterialTheme.typography.bodyLarge)
+                        }
                     }
-                } else {
-                    Text("Brak nadchodzących wizyt.", style = MaterialTheme.typography.bodyLarge)
-                }
 
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // PRZESZŁE WIZYTY
-                if (pastBookings.isNotEmpty()) {
-                    Text(
-                        "Przeszłe wizyty",
-                        style = MaterialTheme.typography.titleLarge
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    LazyColumn {
+                    if (pastBookings.isNotEmpty()) {
+                        item {
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                "Przeszłe wizyty",
+                                style = MaterialTheme.typography.titleLarge
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
                         items(pastBookings) { booking ->
                             BookingCard(booking = booking)
                             Spacer(modifier = Modifier.height(12.dp))
@@ -116,6 +117,7 @@ fun MyAppointmentsScreen() {
                     }
                 }
             }
+
         }
 
         // Dialog potwierdzający anulowanie wizyty

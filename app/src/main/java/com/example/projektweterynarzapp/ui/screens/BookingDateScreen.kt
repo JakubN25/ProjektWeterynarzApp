@@ -80,7 +80,7 @@ fun BookingDateScreen(
     val timeSlots by remember {
         mutableStateOf(
             generateSequence(LocalTime.of(8, 0)) { it.plusMinutes(20) }
-                .takeWhile { it <= LocalTime.of(20, 0) }
+                .takeWhile { it <= LocalTime.of(19, 40) }
                 .map { it.format(timeFormatter) }
                 .toList()
         )
